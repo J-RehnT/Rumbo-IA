@@ -63,6 +63,15 @@ Ya están el cliente, el repositorio y el esquema; solo falta activarlos:
 
 Los endpoints no cambian: solo hablan con la interfaz `Repositorio` de `src/db/tipos.ts`. La service role key solo debe vivir en este servidor, nunca en la app.
 
+## Publicar en Render
+
+1. En render.com: **New → Web Service** y conecta el repo `Rumbo-IA`.
+2. **Root Directory:** `server` · **Build Command:** `npm install` · **Start Command:** `npm start` · plan **Free**.
+3. En **Environment** agrega `JWT_SECRET`, `ANTHROPIC_API_KEY`, `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`. `PORT` lo pone Render solo.
+4. La URL queda como `https://<nombre>.onrender.com/api`. Pruébala con `/api/salud`.
+
+El plan Free se duerme tras 15 minutos sin uso y la primera petición tarda ~1 minuto: ábrela antes de la demo. Al dormirse se borran los datos en memoria, así que en Render conviene tener Supabase conectado.
+
 ## Estructura
 
 ```
