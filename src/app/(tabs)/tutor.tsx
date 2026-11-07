@@ -11,7 +11,8 @@ const OPCIONES = ['u = ln(x)', 'u = x'];
 const RAPIDAS = ['Más simple', 'Otro ejemplo', 'Siguiente paso'];
 
 export default function Tutor() {
-  const { perfil, cursos } = useEstudiante();
+  const { perfil, cursos, registrarSesion } = useEstudiante();
+  const sesionContada = useRef(false);
   const { pregunta } = useLocalSearchParams<{ pregunta?: string }>();
   const [mensajes, setMensajes] = useState<Mensaje[]>([
     { id: 'm1', autor: 'estudiante', texto: 'No entiendo cuándo elegir u y cuándo dv' },
@@ -28,6 +29,11 @@ export default function Tutor() {
     setMensajes(nuevos);
     setTexto('');
     setPensando(true);
+    // Cuenta una sesión de estudio por visita al tutor (alimenta las tarjetas de Inicio).
+    if (!sesionContada.current && cursos[0]) {
+      sesionContada.current = true;
+      registrarSesion(cursos[0].id, 'Integrales por partes');
+    }
     try {
       const r = await preguntarTutor(nuevos, { ciclo: perfil.ciclo, carrera: perfil.carrera, curso: cursos[0] });
       setMensajes((m) => [...m, { id: `${Date.now()}t`, autor: 'tutor', texto: r }]);

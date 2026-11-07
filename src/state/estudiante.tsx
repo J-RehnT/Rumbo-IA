@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import type { Universidad } from '../data/universidades';
+import { enDias } from '../lib/fechas';
 
 export type Dificultad = 'facil' | 'normal' | 'complicado';
 export type Curso = {
@@ -7,8 +8,12 @@ export type Curso = {
   nombre: string;
   horasClase: number;
   dificultad: Dificultad;
-  parcial?: string;
-  avance: number; // 0–100, aciertos en práctica
+  parcial?: string; // fecha ISO YYYY-MM-DD
+  // Lo que Rumbo puede medir de verdad (en vez de un "% de conocimiento").
+  minutosSemana: number; // estudio con el tutor en los últimos 7 días
+  sesionesSemana: number; // sesiones con el tutor en los últimos 7 días
+  ultimoTema?: string;
+  ultimaVez?: string; // fecha ISO de la última sesión
 };
 export type Animo = 0 | 1 | 2 | 3 | 4; // Agotado … Genial
 export type Carga = 'ligera' | 'normal' | 'pesada';
@@ -31,6 +36,7 @@ type Estado = {
   actualizarCurso: (id: string, cambios: Partial<Curso>) => void;
   quitarCurso: (id: string) => void;
   registrarCheckIn: (c: Omit<CheckIn, 'fecha'>) => void;
+  registrarSesion: (cursoId: string, tema: string, minutos?: number) => void;
   sugerirApoyo: boolean;
 };
 
@@ -38,9 +44,29 @@ const EstudianteContext = createContext<Estado | null>(null);
 
 // Datos de ejemplo para la demo (se reemplazan al completar el registro).
 const CURSOS_DEMO: Curso[] = [
-  { id: 'c1', nombre: 'Cálculo II', horasClase: 5, dificultad: 'complicado', parcial: '12 nov', avance: 42 },
-  { id: 'c2', nombre: 'Física II', horasClase: 4, dificultad: 'normal', avance: 61 },
-  { id: 'c3', nombre: 'Estructuras de datos', horasClase: 4, dificultad: 'normal', avance: 78 },
+  {
+    id: 'c1',
+    nombre: 'Cálculo II',
+    horasClase: 5,
+    dificultad: 'complicado',
+    parcial: enDias(5),
+    minutosSemana: 150,
+    sesionesSemana: 3,
+    ultimoTema: 'Integrales por partes',
+    ultimaVez: enDias(-1),
+  },
+  {
+    id: 'c2',
+    nombre: 'Física II',
+    horasClase: 4,
+    dificultad: 'normal',
+    parcial: enDias(12),
+    minutosSemana: 45,
+    sesionesSemana: 1,
+    ultimoTema: 'Ley de Gauss',
+    ultimaVez: enDias(-4),
+  },
+  { id: 'c3', nombre: 'Estructuras de datos', horasClase: 4, dificultad: 'normal', minutosSemana: 0, sesionesSemana: 0 },
 ];
 
 export function EstudianteProvider({ children }: { children: ReactNode }) {
@@ -68,10 +94,24 @@ export function EstudianteProvider({ children }: { children: ReactNode }) {
       agregarCurso: (nombre) =>
         setCursos((cs) => [
           ...cs,
-          { id: String(Date.now()), nombre, horasClase: 4, dificultad: 'normal', avance: 0 },
+          { id: String(Date.now()), nombre, horasClase: 4, dificultad: 'normal', minutosSemana: 0, sesionesSemana: 0 },
         ]),
       actualizarCurso: (id, c) => setCursos((cs) => cs.map((x) => (x.id === id ? { ...x, ...c } : x))),
       quitarCurso: (id) => setCursos((cs) => cs.filter((x) => x.id !== id)),
+      registrarSesion: (cursoId, tema, minutos = 10) =>
+        setCursos((cs) =>
+          cs.map((x) =>
+            x.id === cursoId
+              ? {
+                  ...x,
+                  minutosSemana: x.minutosSemana + minutos,
+                  sesionesSemana: x.sesionesSemana + 1,
+                  ultimoTema: tema,
+                  ultimaVez: enDias(0),
+                }
+              : x,
+          ),
+        ),
       registrarCheckIn: (c) => setCheckins((cs) => [...cs, { ...c, fecha: new Date().toISOString() }]),
     };
   }, [perfil, cursos, checkins]);

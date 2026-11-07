@@ -1,17 +1,54 @@
 import { router } from 'expo-router';
-import { ArrowRight, ChevronRight, Compass, Smile } from 'lucide-react-native';
+import { ArrowRight, Calendar, ChevronRight, Clock, Compass, Smile } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BarraAvance } from '../../components/BarraAvance';
-import { useEstudiante, type Curso } from '../../state/estudiante';
+import { diasHasta, duracion, haceCuanto, textoParcial } from '../../lib/fechas';
+import { useEstudiante, type Curso, type Dificultad } from '../../state/estudiante';
 import { color, fuente, radio } from '../../theme';
 
-function nota(c: Curso) {
-  if (c.avance >= 75) return 'Vas muy bien, sigue así';
-  if (c.avance >= 55) return 'Último repaso: ayer';
-  if (c.avance > 0) return 'Este tema te está costando, repasemos';
-  return 'Aún sin práctica';
+const DIFICULTAD: Record<Dificultad, { etiqueta: string; fondo: string; texto: string }> = {
+  facil: { etiqueta: 'Fácil', fondo: color.fondo.suave, texto: color.texto.acento },
+  normal: { etiqueta: 'Normal', fondo: color.fondo.base, texto: color.texto.secundario },
+  complicado: { etiqueta: 'Complicado', fondo: color.accion.suave, texto: color.accion.suaveTexto },
+};
+
+// Primero el parcial más cercano; los cursos sin fecha van al final.
+const porParcial = (a: Curso, b: Curso) =>
+  (a.parcial ? diasHasta(a.parcial) : Infinity) - (b.parcial ? diasHasta(b.parcial) : Infinity);
+
+/** Datos que Rumbo sí puede medir: fecha del parcial, tiempo de estudio y último tema visto. */
+function TarjetaCurso({ c, onPress }: { c: Curso; onPress: () => void }) {
+  const dif = DIFICULTAD[c.dificultad];
+  const dias = c.parcial ? diasHasta(c.parcial) : null;
+  const cerca = dias !== null && dias >= 0 && dias <= 7;
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={s.curso}>
+      <View style={s.cursoFila}>
+        <Text style={s.cursoNombre} numberOfLines={1}>
+          {c.nombre}
+        </Text>
+        <View style={[s.dificultad, { backgroundColor: dif.fondo }]}>
+          <Text style={[s.dificultadTexto, { color: dif.texto }]}>{dif.etiqueta}</Text>
+        </View>
+      </View>
+      <View style={s.datos}>
+        <View style={s.dato}>
+          <Calendar size={16} color={cerca ? color.texto.acento : color.texto.secundario} />
+          <Text style={[s.datoTexto, cerca && s.datoUrgente]}>{c.parcial ? textoParcial(c.parcial) : 'Sin fecha de parcial'}</Text>
+        </View>
+        <View style={s.dato}>
+          <Clock size={16} color={color.texto.secundario} />
+          <Text style={s.datoTexto}>{duracion(c.minutosSemana)} esta semana</Text>
+        </View>
+      </View>
+      <Text style={s.cursoNota} numberOfLines={1}>
+        {c.ultimoTema && c.ultimaVez
+          ? `Último tema: ${c.ultimoTema} · ${haceCuanto(c.ultimaVez)}`
+          : 'Aún no lo estudias con Rumbo. ¿Empezamos?'}
+      </Text>
+    </Pressable>
+  );
 }
 
 export default function Inicio() {
@@ -82,15 +119,8 @@ export default function Inicio() {
           </Text>
         </View>
 
-        {cursos.map((c) => (
-          <Pressable key={c.id} accessibilityRole="button" onPress={() => abrirTutor(c.nombre)} style={s.curso}>
-            <View style={s.cursoFila}>
-              <Text style={s.cursoNombre}>{c.nombre}</Text>
-              <Text style={s.cursoPct}>{c.avance}%</Text>
-            </View>
-            <BarraAvance valor={c.avance} />
-            <Text style={s.cursoNota}>{nota(c)}</Text>
-          </Pressable>
+        {[...cursos].sort(porParcial).map((c) => (
+          <TarjetaCurso key={c.id} c={c} onPress={() => abrirTutor(c.nombre)} />
         ))}
       </ScrollView>
     </SafeAreaView>
@@ -175,8 +205,13 @@ const s = StyleSheet.create({
     borderColor: color.borde.sutil,
     backgroundColor: color.fondo.superficie,
   },
-  cursoFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cursoNombre: { fontFamily: fuente.titulo, fontSize: 16, color: color.texto.principal },
-  cursoPct: { fontFamily: fuente.cuerpo, fontSize: 13, color: color.texto.secundario },
+  cursoFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  cursoNombre: { flex: 1, fontFamily: fuente.titulo, fontSize: 16, color: color.texto.principal },
+  dificultad: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radio.full },
+  dificultadTexto: { fontFamily: fuente.cuerpoFuerte, fontSize: 12 },
+  datos: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 16, rowGap: 6 },
+  dato: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  datoTexto: { fontFamily: fuente.cuerpoMedio, fontSize: 13, color: color.texto.principal },
+  datoUrgente: { fontFamily: fuente.cuerpoFuerte, color: color.texto.acento },
   cursoNota: { fontFamily: fuente.cuerpo, fontSize: 13, color: color.texto.secundario },
 });
