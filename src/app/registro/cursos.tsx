@@ -2,10 +2,12 @@ import { router } from 'expo-router';
 import { Calendar, Minus, Plus, X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Aviso } from '../../components/Aviso';
 import { Boton } from '../../components/Boton';
 import { Chip } from '../../components/Chip';
 import { PantallaRegistro } from '../../components/PantallaRegistro';
 import { CURSOS_ING_SOFTWARE_UPC } from '../../data/cursos';
+import { mensajeDeError } from '../../lib/api';
 import { useEstudiante, type Curso, type Dificultad } from '../../state/estudiante';
 import { color, fuente, radio } from '../../theme';
 
@@ -16,9 +18,20 @@ const NIVELES: { valor: Dificultad; etiqueta: string }[] = [
 ];
 
 export default function Cursos() {
-  const { cursos, agregarCurso, actualizarCurso, quitarCurso } = useEstudiante();
+  const { cursos, agregarCurso, actualizarCurso, quitarCurso, registrarNota } = useEstudiante();
   const [nuevo, setNuevo] = useState('');
   const [area, setArea] = useState(CURSOS_ING_SOFTWARE_UPC[0].area);
+  const [error, setError] = useState<string | null>(null);
+
+  /** Ejecuta una operación contra la API y muestra el error si falla. */
+  const intentar = async (operacion: () => Promise<unknown>) => {
+    setError(null);
+    try {
+      await operacion();
+    } catch (e) {
+      setError(mensajeDeError(e));
+    }
+  };
 
   const buscarCurso = (nombre: string) =>
     cursos.find((c) => normalizar(c.nombre) === normalizar(nombre));
@@ -26,14 +39,18 @@ export default function Cursos() {
   const agregar = () => {
     const nombre = nuevo.trim();
     if (!nombre) return;
-    if (!buscarCurso(nombre)) agregarCurso(nombre);
+    if (!buscarCurso(nombre)) intentar(() => agregarCurso(nombre));
     setNuevo('');
   };
 
   const alternar = (nombre: string) => {
     const existente = buscarCurso(nombre);
-    if (existente) quitarCurso(existente.id);
-    else agregarCurso(nombre);
+    intentar(() => (existente ? quitarCurso(existente.id) : agregarCurso(nombre)));
+  };
+
+  const terminar = () => {
+    if (cursos.length === 0) return setError('Agrega al menos un curso para crear tu rumbo.');
+    router.replace('/inicio');
   };
 
   // Con texto escrito se busca en todo el catálogo; si no, se muestra el área elegida.
@@ -48,7 +65,12 @@ export default function Cursos() {
       paso={3}
       titulo="¿Qué cursos llevas este ciclo?"
       bajada="Elígelos del catálogo o escríbelos como figuran en tu matrícula."
-      pie={<Boton etiqueta="Crear mi rumbo" onPress={() => router.replace('/inicio')} />}
+      pie={
+        <>
+          <Aviso texto={error} />
+          <Boton etiqueta="Crear mi rumbo" onPress={terminar} />
+        </>
+      }
     >
       <View style={s.agregar}>
         <TextInput
@@ -110,8 +132,9 @@ export default function Cursos() {
           <TarjetaCurso
             key={c.id}
             curso={c}
-            onCambiar={(cambios) => actualizarCurso(c.id, cambios)}
-            onQuitar={() => quitarCurso(c.id)}
+            onCambiar={(cambios) => intentar(() => actualizarCurso(c.id, cambios))}
+            onQuitar={() => intentar(() => quitarCurso(c.id))}
+            onNota={(nota) => intentar(() => registrarNota(c.id, nota))}
           />
         ))}
       </View>
@@ -119,7 +142,26 @@ export default function Cursos() {
   );
 }
 
-function TarjetaCurso({ curso, onCambiar, onQuitar }: { curso: Curso; onCambiar: (c: Partial<Curso>) => void; onQuitar: () => void }) {
+function TarjetaCurso({
+  curso,
+  onCambiar,
+  onQuitar,
+  onNota,
+}: {
+  curso: Curso;
+  onCambiar: (c: Partial<Curso>) => void;
+  onQuitar: () => void;
+  onNota: (nota: number) => void;
+}) {
+  const [nota, setNota] = useState('');
+  const valor = Number(nota.replace(',', '.'));
+  const notaValida = nota.trim() !== '' && Number.isFinite(valor) && valor >= 0 && valor <= 20;
+  const guardarNota = () => {
+    if (!notaValida) return;
+    onNota(valor);
+    setNota('');
+  };
+
   return (
     <View style={s.tarjeta}>
       <View style={s.fila}>
@@ -179,6 +221,31 @@ function TarjetaCurso({ curso, onCambiar, onQuitar }: { curso: Curso; onCambiar:
         ) : (
           <Text style={s.parcialVacio}>Agregar fecha del próximo parcial (opcional)</Text>
         )}
+      </View>
+
+      <View style={s.fila}>
+        <Text style={s.rotulo}>Avance: {curso.avance}%</Text>
+        <View style={s.notaFila}>
+          <TextInput
+            value={nota}
+            onChangeText={setNota}
+            onSubmitEditing={guardarNota}
+            placeholder="Nota 0–20"
+            placeholderTextColor={color.texto.secundario}
+            keyboardType="decimal-pad"
+            returnKeyType="done"
+            style={s.notaInput}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Guardar nota de ${curso.nombre}`}
+            onPress={guardarNota}
+            disabled={!notaValida}
+            style={[s.notaBoton, !notaValida && { opacity: 0.4 }]}
+          >
+            <Plus size={16} color={color.texto.invertido} />
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -269,4 +336,25 @@ const s = StyleSheet.create({
   nivelTexto: { fontFamily: fuente.cuerpoMedio, fontSize: 13, color: color.texto.principal },
   parcial: { fontFamily: fuente.cuerpoMedio, fontSize: 13, color: color.texto.principal },
   parcialVacio: { fontFamily: fuente.cuerpo, fontSize: 13, color: color.texto.acento },
+  notaFila: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  notaInput: {
+    width: 96,
+    minHeight: 36,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: color.borde.sutil,
+    backgroundColor: color.fondo.base,
+    fontFamily: fuente.cuerpo,
+    fontSize: 13,
+    color: color.texto.principal,
+  },
+  notaBoton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: color.accion.primaria,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

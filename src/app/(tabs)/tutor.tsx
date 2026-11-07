@@ -1,25 +1,26 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Check, ChevronLeft, Lightbulb, Send, Sparkles } from 'lucide-react-native';
+import { ChevronLeft, Lightbulb, Send } from 'lucide-react-native';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { mensajeDeError } from '../../lib/api';
 import { preguntarTutor, type Mensaje } from '../../lib/tutor';
 import { useEstudiante } from '../../state/estudiante';
 import { color, fuente, radio } from '../../theme';
 
-const OPCIONES = ['u = ln(x)', 'u = x'];
 const RAPIDAS = ['Más simple', 'Otro ejemplo', 'Siguiente paso'];
 
 export default function Tutor() {
   const { perfil, cursos } = useEstudiante();
   const { pregunta } = useLocalSearchParams<{ pregunta?: string }>();
-  const [mensajes, setMensajes] = useState<Mensaje[]>([
-    { id: 'm1', autor: 'estudiante', texto: 'No entiendo cuándo elegir u y cuándo dv' },
-  ]);
-  const [eleccion, setEleccion] = useState<number | null>(0);
+  const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [texto, setTexto] = useState('');
   const [pensando, setPensando] = useState(false);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
+
+  const saludo = `¡Hola, ${perfil.nombre.split(' ')[0]}! Soy tu tutor de Rumbo. ¿Con qué tema${
+    cursos[0] ? ` de ${cursos[0].nombre}` : ''
+  } quieres empezar?`;
 
   const enviar = async (t: string) => {
     const limpio = t.trim();
@@ -29,10 +30,12 @@ export default function Tutor() {
     setTexto('');
     setPensando(true);
     try {
-      const r = await preguntarTutor(nuevos, { ciclo: perfil.ciclo, carrera: perfil.carrera, curso: cursos[0] });
+      // Si la conversación menciona uno de sus cursos, el tutor responde con ese contexto.
+      const mencionado = cursos.find((c) => nuevos.some((m) => m.texto.toLowerCase().includes(c.nombre.toLowerCase())));
+      const r = await preguntarTutor(nuevos.slice(-40), { ciclo: perfil.ciclo, carrera: perfil.carrera, curso: mencionado ?? cursos[0] });
       setMensajes((m) => [...m, { id: `${Date.now()}t`, autor: 'tutor', texto: r }]);
-    } catch {
-      setMensajes((m) => [...m, { id: `${Date.now()}e`, autor: 'tutor', texto: 'No pude responder ahora. Intenta de nuevo en un momento.' }]);
+    } catch (e) {
+      setMensajes((m) => [...m, { id: `${Date.now()}e`, autor: 'tutor', texto: mensajeDeError(e) }]);
     } finally {
       setPensando(false);
     }
@@ -52,69 +55,21 @@ export default function Tutor() {
             <ChevronLeft size={22} color={color.texto.principal} />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={s.tema}>Integrales por partes</Text>
+            <Text style={s.tema}>Tu tutor</Text>
             <Text style={s.nivel}>
-              {cursos[0]?.nombre ?? 'Cálculo II'} · nivel {perfil.ciclo}.º ciclo
+              {perfil.ciclo}.º ciclo · {perfil.carrera || 'tu carrera'}
             </Text>
           </View>
           <Pressable accessibilityRole="button" accessibilityLabel="Pista" onPress={() => enviar('Dame una pista')} style={s.pista}>
             <Lightbulb size={20} color={color.texto.acento} />
           </Pressable>
         </View>
-        <View style={s.progresoFila}>
-          {[0, 1, 2, 3].map((i) => (
-            <View key={i} style={[s.segmento, i < 2 && s.segmentoLleno]} />
-          ))}
-          <Text style={s.paso}>Paso 2 de 4</Text>
-        </View>
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView ref={scroll} contentContainerStyle={s.chat} onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}>
-          <Burbuja m={mensajes[0]} />
-
-          <View style={[s.burbuja, s.burbujaTutor]}>
-            <Text style={s.burbujaTexto}>Tranqui, es la duda más común. Usa esta regla para elegir u:</Text>
-            <View style={s.regla}>
-              <Text style={s.reglaTexto}>L · I · A · T · E</Text>
-            </View>
-            <Text style={s.reglaNota}>
-              Logarítmica, Inversa trig., Algebraica, Trigonométrica, Exponencial. La que aparece primero es tu u.
-            </Text>
-          </View>
-
-          <View style={s.ejercicio}>
-            <View style={s.ejercicioFila}>
-              <Text style={s.pruebalo}>PRUÉBALO</Text>
-              <Text style={s.contador}>1 de 3</Text>
-            </View>
-            <Text style={s.enunciado}>En ∫ x·ln(x) dx, ¿qué eliges como u?</Text>
-            {OPCIONES.map((o, i) => {
-              const activo = eleccion === i;
-              return (
-                <Pressable
-                  key={o}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: activo }}
-                  onPress={() => setEleccion(i)}
-                  style={[s.opcion, activo && (i === 0 ? s.opcionBien : s.opcionMal)]}
-                >
-                  <Text style={[s.opcionTexto, activo && { fontFamily: fuente.cuerpoFuerte }]}>{o}</Text>
-                  {activo && i === 0 && <Check size={20} color={color.accion.primaria} />}
-                </Pressable>
-              );
-            })}
-            {eleccion !== null && (
-              <View style={s.feedback}>
-                <Sparkles size={16} color={color.texto.acento} />
-                <Text style={s.feedbackTexto}>
-                  {eleccion === 0 ? '¡Bien! L va antes que A en LIATE.' : 'Casi. Mira LIATE: la L (ln) va antes que la A (x).'}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {mensajes.slice(1).map((m) => (
+          <Burbuja m={{ id: 'saludo', autor: 'tutor', texto: saludo }} />
+          {mensajes.map((m) => (
             <Burbuja key={m.id} m={m} />
           ))}
           {pensando && <ActivityIndicator color={color.accion.primaria} style={{ alignSelf: 'flex-start', marginLeft: 8 }} />}
@@ -147,7 +102,6 @@ export default function Tutor() {
     </SafeAreaView>
   );
 }
-
 function Burbuja({ m }: { m: Mensaje }) {
   const propia = m.autor === 'estudiante';
   return (

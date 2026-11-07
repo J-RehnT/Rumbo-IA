@@ -69,8 +69,28 @@ const m = await llamar('POST', `/tutor/conversaciones/${conv.id}/mensajes`, { te
 console.log('   tutor:', m.respuesta.texto.slice(0, 80));
 await llamar('GET', `/tutor/conversaciones/${conv.id}/mensajes`);
 await llamar('GET', '/tutor/conversaciones');
+// ---- Agenda académica ----
+const sync = await llamar('POST', '/actividades/sincronizar', {});
+console.log(`   sincronizadas: ${sync.agregadas} actividades de la universidad (simulada)`);
+const sync2 = await llamar('POST', '/actividades/sincronizar', {});
+if (sync2.agregadas !== 0) throw new Error('Sincronizar dos veces no debe duplicar');
+const manual = await llamar('POST', '/actividades', { cursoId: calculo.id, tipo: 'entrega_grupal', titulo: 'Proyecto final', fecha: enDias(3) }, 201);
+await llamar('POST', '/actividades', { cursoId: calculo.id, tipo: 'quiz', fecha: enDias(3) }, 400);
+await llamar('POST', '/actividades', { cursoId: 'no-existe', tipo: 'practica', fecha: enDias(3) }, 404);
+await llamar('PATCH', `/actividades/${manual.id}`, { fecha: enDias(2), completada: false });
+const agenda = await llamar('GET', '/actividades');
+console.log(`   agenda: ${agenda.length} actividades · primera: ${agenda[0].titulo} de ${agenda[0].curso} en ${agenda[0].diasRestantes} día(s)`);
+const ini2 = await llamar('GET', '/inicio');
+console.log(`   inicio: ${ini2.proximas.length} próximas · ${ini2.recomendacion.texto}`);
+await llamar('DELETE', `/actividades/${manual.id}`, undefined, 204);
+await llamar('DELETE', `/actividades/${manual.id}`, undefined, 404);
+
+const pregunta = { mensajes: [{ autor: 'estudiante', texto: 'Hola' }], contexto: { ciclo: 3, carrera: 'Economía' } };
+await llamar('POST', '/tutor/preguntar', pregunta); // con sesión
+const progreso = await llamar('GET', '/progreso');
+if (progreso.semanas?.length !== 6) throw new Error('/progreso debe traer 6 semanas');
 token = '';
-await llamar('POST', '/tutor/preguntar', { mensajes: [{ autor: 'estudiante', texto: 'Hola' }], contexto: { ciclo: 3, carrera: 'Economía' } });
+await llamar('POST', '/tutor/preguntar', pregunta, 401); // sin sesión: el tutor ya no es público
 await llamar('GET', '/nada', undefined, 401);
 
 server.close();

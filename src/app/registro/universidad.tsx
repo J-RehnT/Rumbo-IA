@@ -2,8 +2,10 @@ import { router } from 'expo-router';
 import { ChevronDown } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Aviso } from '../../components/Aviso';
 import { Boton } from '../../components/Boton';
 import { Campo } from '../../components/Campo';
+import { mensajeDeError } from '../../lib/api';
 import { PantallaRegistro } from '../../components/PantallaRegistro';
 import { SelectorUniversidad } from '../../components/SelectorUniversidad';
 import { useEstudiante } from '../../state/estudiante';
@@ -12,15 +14,38 @@ import { color, fuente, radio } from '../../theme';
 const CICLOS = Array.from({ length: 12 }, (_, i) => i + 1);
 
 export default function Universidad() {
-  const { perfil, setPerfil } = useEstudiante();
+  const { perfil, setPerfil, guardarPerfilAcademico } = useEstudiante();
   const [selector, setSelector] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  const seguir = async () => {
+    if (enviando) return;
+    if (!perfil.universidad) return setError('Elige tu universidad.');
+    if (!perfil.carrera.trim()) return setError('Escribe tu carrera.');
+    setError(null);
+    setEnviando(true);
+    try {
+      await guardarPerfilAcademico();
+      router.push('/registro/cursos');
+    } catch (e) {
+      setError(mensajeDeError(e));
+    } finally {
+      setEnviando(false);
+    }
+  };
 
   return (
     <PantallaRegistro
       paso={2}
       titulo="¿Dónde estudias?"
       bajada="Adaptamos las explicaciones a tu carrera y al ciclo en el que vas."
-      pie={<Boton etiqueta="Continuar" onPress={() => router.push('/registro/cursos')} />}
+      pie={
+        <>
+          <Aviso texto={error} />
+          <Boton etiqueta={enviando ? 'Guardando…' : 'Continuar'} onPress={seguir} deshabilitado={enviando} />
+        </>
+      }
     >
       <View style={{ gap: 20 }}>
         <View style={{ gap: 8 }}>

@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { ChartLine, House, MessageCircle, type LucideIcon } from 'lucide-react-native';
+import { CalendarDays, ChartLine, House, MessageCircle, type LucideIcon } from 'lucide-react-native';
 import type { ComponentProps } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import { color, fuente, radio } from '../../theme';
 
 const ICONOS: Record<string, { Icono: LucideIcon; etiqueta: string }> = {
   inicio: { Icono: House, etiqueta: 'Inicio' },
+  agenda: { Icono: CalendarDays, etiqueta: 'Agenda' },
   tutor: { Icono: MessageCircle, etiqueta: 'Tutor' },
   progreso: { Icono: ChartLine, etiqueta: 'Progreso' },
 };
@@ -49,6 +50,7 @@ export default function TabsLayout() {
   return (
     <Tabs screenOptions={{ headerShown: false }} tabBar={(props) => <Navegacion {...props} />}>
       <Tabs.Screen name="inicio" />
+      <Tabs.Screen name="agenda" />
       <Tabs.Screen name="tutor" />
       <Tabs.Screen name="progreso" />
     </Tabs>
@@ -64,7 +66,7 @@ const s = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: color.borde.sutil,
   },
-  item: { minWidth: 72, minHeight: 48, alignItems: 'center', gap: 4 },
+  item: { minWidth: 64, minHeight: 48, alignItems: 'center', gap: 4 },
   pildora: { width: 54, height: 28, borderRadius: radio.full, alignItems: 'center', justifyContent: 'center' },
   pildoraActiva: { backgroundColor: color.accion.suave },
   etiqueta: { fontFamily: fuente.cuerpo, fontSize: 12, color: color.texto.secundario },

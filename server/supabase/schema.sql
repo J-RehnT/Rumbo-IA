@@ -36,6 +36,21 @@ create table if not exists evaluaciones (
 );
 create index if not exists evaluaciones_curso_idx on evaluaciones(curso_id);
 
+-- Agenda académica: parciales, exámenes, prácticas y entregas de trabajo en equipo.
+create table if not exists actividades (
+  id         uuid primary key default gen_random_uuid(),
+  usuario_id uuid not null references usuarios(id) on delete cascade,
+  curso_id   uuid not null references cursos(id) on delete cascade,
+  tipo       text not null check (tipo in ('parcial','examen','practica','entrega_grupal')),
+  titulo     text not null,
+  fecha      date not null,
+  origen     text not null default 'manual' check (origen in ('universidad','manual')),
+  completada boolean not null default false,
+  creado_en  timestamptz not null default now()
+);
+create index if not exists actividades_usuario_fecha_idx on actividades(usuario_id, fecha);
+create index if not exists actividades_curso_idx on actividades(curso_id);
+
 create table if not exists checkins (
   id          uuid primary key default gen_random_uuid(),
   usuario_id  uuid not null references usuarios(id) on delete cascade,
@@ -69,6 +84,7 @@ create index if not exists mensajes_conversacion_idx on mensajes(conversacion_id
 alter table usuarios       enable row level security;
 alter table cursos         enable row level security;
 alter table evaluaciones   enable row level security;
+alter table actividades    enable row level security;
 alter table checkins       enable row level security;
 alter table conversaciones enable row level security;
 alter table mensajes       enable row level security;

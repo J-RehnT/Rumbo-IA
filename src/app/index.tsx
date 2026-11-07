@@ -37,8 +37,7 @@ export default function Hero() {
           icono={(c) => <ArrowRight size={20} color={c} />}
           style={{ alignSelf: 'stretch' }}
         />
-        {/* Sin backend todavía: entra directo a la app. */}
-        <Boton etiqueta="Ya tengo cuenta" estilo="texto" onPress={() => router.replace('/inicio')} />
+        <Boton etiqueta="Ya tengo cuenta" estilo="texto" onPress={() => router.push('/login')} />
       </View>
 
       <View style={{ flex: 1 }} onLayout={(e) => setAltoArco(e.nativeEvent.layout.height)}>

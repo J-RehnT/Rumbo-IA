@@ -3,8 +3,10 @@ import { Annoyed, Frown, Laugh, Layers, Meh, Moon, Smile, X, type LucideIcon } f
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Aviso } from '../components/Aviso';
 import { Boton } from '../components/Boton';
 import { Tarjeta } from '../components/Tarjeta';
+import { mensajeDeError } from '../lib/api';
 import { useEstudiante, type Animo, type Carga } from '../state/estudiante';
 import { color, fuente, radio } from '../theme';
 
@@ -24,10 +26,26 @@ const MAX_SUENO = 12;
 
 export default function CheckIn() {
   const { registrarCheckIn } = useEstudiante();
-  const [animo, setAnimo] = useState<Animo>(1);
-  const [sueno, setSueno] = useState(5);
-  const [carga, setCarga] = useState<Carga>('pesada');
+  const [animo, setAnimo] = useState<Animo>(2);
+  const [sueno, setSueno] = useState(7);
+  const [carga, setCarga] = useState<Carga>('normal');
   const [anchoPista, setAnchoPista] = useState(1);
+  const [error, setError] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  const guardar = async () => {
+    if (enviando) return;
+    setError(null);
+    setEnviando(true);
+    try {
+      await registrarCheckIn({ animo, horasSueno: sueno, carga });
+      router.back();
+    } catch (e) {
+      setError(mensajeDeError(e));
+    } finally {
+      setEnviando(false);
+    }
+  };
 
   const moverSueno = (x: number) => setSueno(Math.round(Math.max(0, Math.min(1, x / anchoPista)) * MAX_SUENO));
 
@@ -140,13 +158,8 @@ export default function CheckIn() {
       </ScrollView>
 
       <View style={s.pie}>
-        <Boton
-          etiqueta="Listo"
-          onPress={() => {
-            registrarCheckIn({ animo, horasSueno: sueno, carga });
-            router.back();
-          }}
-        />
+        <Aviso texto={error} />
+        <Boton etiqueta={enviando ? 'Guardando…' : 'Listo'} onPress={guardar} deshabilitado={enviando} />
       </View>
     </SafeAreaView>
   );

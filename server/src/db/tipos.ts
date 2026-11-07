@@ -36,6 +36,22 @@ export type Evaluacion = {
   fecha: string;
 };
 
+export type TipoActividad = 'parcial' | 'examen' | 'practica' | 'entrega_grupal';
+export type OrigenActividad = 'universidad' | 'manual';
+
+/** Fecha de evaluación o entrega de un curso (parcial, examen, práctica, trabajo en equipo). */
+export type Actividad = {
+  id: string;
+  usuarioId: string;
+  cursoId: string;
+  tipo: TipoActividad;
+  titulo: string;
+  fecha: string; // YYYY-MM-DD
+  origen: OrigenActividad; // 'universidad' = cargada por la sincronización (simulada)
+  completada: boolean;
+  creadoEn: string;
+};
+
 export type CheckIn = {
   id: string;
   usuarioId: string;
@@ -85,6 +101,13 @@ export interface Repositorio {
   evaluaciones: {
     listar(usuarioId: string, cursoId?: string): Promise<Evaluacion[]>;
     crear(datos: Omit<Evaluacion, 'id'>): Promise<Evaluacion>;
+  };
+  actividades: {
+    listar(usuarioId: string, cursoId?: string): Promise<Actividad[]>; // por fecha
+    porId(usuarioId: string, id: string): Promise<Actividad | null>;
+    crear(datos: Nuevo<Actividad>): Promise<Actividad>;
+    actualizar(usuarioId: string, id: string, cambios: Partial<Nuevo<Actividad>>): Promise<Actividad | null>;
+    eliminar(usuarioId: string, id: string): Promise<boolean>;
   };
   checkins: {
     listar(usuarioId: string, desde?: string): Promise<CheckIn[]>; // orden cronológico

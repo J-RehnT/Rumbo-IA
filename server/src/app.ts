@@ -3,7 +3,9 @@ import express from 'express';
 import { config } from './config.js';
 import { ErrorApi } from './lib/errores.js';
 import { requiereAuth } from './middleware/auth.js';
+import { limiteTutor } from './middleware/limite.js';
 import { manejarErrores } from './middleware/errores.js';
+import { actividades } from './routes/actividades.js';
 import { auth } from './routes/auth.js';
 import { bienestar } from './routes/bienestar.js';
 import { cursos } from './routes/cursos.js';
@@ -23,12 +25,13 @@ export function crearApp() {
   api.get('/universidades', (_req, res) => res.json(UNIVERSIDADES));
   api.get('/recursos-apoyo', (_req, res) => res.json(RECURSOS_APOYO));
   api.use('/auth', auth);
-  api.use('/tutor/preguntar', tutorRapido);
 
-  // Con sesión
+  // Con sesión (el tutor cuesta dinero: nunca público)
   api.use(requiereAuth);
+  api.use('/tutor/preguntar', limiteTutor, tutorRapido);
   api.use('/me', me);
   api.use('/cursos', cursos);
+  api.use('/actividades', actividades);
   api.use('/tutor', tutor);
   api.use(bienestar); // /checkins, /progreso, /inicio
 

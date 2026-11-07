@@ -12,7 +12,7 @@ npm run smoke          # recorre todos los endpoints y verifica las respuestas
 
 - **Contraseñas:** se hashean con bcrypt (`bcryptjs`, `BCRYPT_ROUNDS`, 10 por defecto). Nunca se devuelve el hash.
 - **Sesión:** `POST /auth/login` o `/auth/registro` devuelven un `token` JWT. Envíalo como `Authorization: Bearer <token>`.
-- **Datos:** por ahora se guardan **en memoria** (se borran al reiniciar). Supabase está listo pero sin conectar (ver abajo).
+- **Datos:** con `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` en `.env` se guardan en **Supabase**; sin ellas, en memoria (se borran al reiniciar). En producción las claves son obligatorias.
 - **Tutor:** con `DEEPSEEK_API_KEY` responde DeepSeek (`TUTOR_MODELO`, por defecto `deepseek-flash`; también `deepseek-v4-pro`). Sin clave responde ejemplos. La clave se crea en https://platform.deepseek.com.
 - **Errores:** siempre `{ error: { codigo, mensaje, detalles? } }`. Los mensajes están en español y se pueden mostrar tal cual.
 
@@ -42,11 +42,11 @@ Todo va bajo `/api`. 🔓 = público, el resto pide token.
 | GET · POST | `/tutor/conversaciones` | `{ cursoId?, titulo? }` | conversaciones |
 | GET | `/tutor/conversaciones/:id/mensajes` | | mensajes |
 | POST | `/tutor/conversaciones/:id/mensajes` | `{ texto }` | `201 { enviado, respuesta }` |
-| 🔓 POST | `/tutor/preguntar` | `{ mensajes: [{ autor, texto }], contexto }` | `{ texto }` |
+| POST | `/tutor/preguntar` (20 por minuto por usuario) | `{ mensajes: [{ autor, texto }], contexto }` | `{ texto }` |
 
 `dificultad`: `facil` · `normal` · `complicado`. `carga`: `ligera` · `normal` · `pesada`. `animo`: 0 Agotado … 4 Genial. Fechas en `AAAA-MM-DD`.
 
-`/tutor/preguntar` es compatible con la app actual: pon `EXPO_PUBLIC_TUTOR_URL=http://<tu-ip>:3000/api/tutor/preguntar` y el chat ya usa este backend.
+La app usa este backend con `EXPO_PUBLIC_API_URL=http://<tu-ip>:3000/api` en el `.env` de la raíz (`npm run ip` te muestra tu IP). Todo, incluido el tutor, exige sesión. `/progreso` también devuelve `semanas` (aciertos y bienestar de las últimas 6 semanas, 0–1 o `null`).
 
 ### Tarjeta de apoyo
 

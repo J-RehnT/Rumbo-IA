@@ -1,9 +1,11 @@
-import { router } from 'expo-router';
-import { ArrowRight, ChevronRight, Compass, Smile } from 'lucide-react-native';
-import { useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { ArrowRight, ChevronRight, Compass, LogOut, Smile } from 'lucide-react-native';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BarraAvance } from '../../components/BarraAvance';
+import { tipoDe } from '../../data/actividades';
+import { cuando, fechaLarga } from '../../lib/fechas';
 import { useEstudiante, type Curso } from '../../state/estudiante';
 import { color, fuente, radio } from '../../theme';
 
@@ -15,8 +17,15 @@ function nota(c: Curso) {
 }
 
 export default function Inicio() {
-  const { perfil, cursos } = useEstudiante();
+  const { perfil, cursos, recomendacion, proximas, checkinPendiente, refrescar, cerrarSesion } = useEstudiante();
   const [duda, setDuda] = useState('');
+
+  // Cada vez que vuelves a Inicio se actualizan cursos, recomendación y check-in.
+  useFocusEffect(
+    useCallback(() => {
+      refrescar().catch(() => {});
+    }, [refrescar]),
+  );
   const abrirTutor = (texto?: string) =>
     router.navigate({ pathname: '/tutor', params: texto ? { pregunta: texto } : {} });
 
@@ -33,6 +42,9 @@ export default function Inicio() {
           <View style={s.avatar}>
             <Text style={s.avatarTexto}>{perfil.nombre.charAt(0).toUpperCase()}</Text>
           </View>
+          <Pressable accessibilityRole="button" accessibilityLabel="Cerrar sesión" onPress={cerrarSesion} hitSlop={8} style={s.salir}>
+            <LogOut size={20} color={color.texto.secundario} />
+          </Pressable>
         </View>
 
         <View style={s.tutor}>
@@ -41,6 +53,7 @@ export default function Inicio() {
             <Text style={s.tutorRotuloTexto}>TU TUTOR</Text>
           </View>
           <Text style={s.tutorPregunta}>¿Qué tema se te complica hoy?</Text>
+          {recomendacion && <Text style={s.recomendacion}>{recomendacion.texto}</Text>}
           <View style={s.tutorFila}>
             <TextInput
               value={duda}
@@ -70,10 +83,40 @@ export default function Inicio() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.checkinTitulo}>¿Cómo llegas hoy?</Text>
-            <Text style={s.checkinSub}>Check-in de 10 segundos</Text>
+            <Text style={s.checkinSub}>{checkinPendiente ? 'Check-in de 10 segundos' : 'Ya hiciste el de hoy · puedes actualizarlo'}</Text>
           </View>
           <ChevronRight size={20} color={color.texto.principal} />
         </Pressable>
+
+        {proximas.length > 0 && (
+          <>
+            <View style={s.seccion}>
+              <Text style={s.seccionTitulo}>Próximas fechas</Text>
+              <Text style={s.verTodos} onPress={() => router.navigate('/agenda')} accessibilityRole="link">
+                Ver agenda
+              </Text>
+            </View>
+            {proximas.map((e) => {
+              const { Icono } = tipoDe(e.tipo);
+              const urgente = e.diasRestantes <= 3;
+              return (
+                <Pressable key={e.id} accessibilityRole="button" onPress={() => router.navigate('/agenda')} style={s.evento}>
+                  <View style={[s.eventoIcono, urgente && { backgroundColor: color.apoyo.fondo }]}>
+                    <Icono size={18} color={urgente ? color.apoyo.texto : color.texto.acento} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.eventoTitulo} numberOfLines={1}>
+                      {e.titulo} · {e.curso}
+                    </Text>
+                    <Text style={[s.eventoFecha, urgente && { color: color.apoyo.accion }]}>
+                      {fechaLarga(e.fecha)} · {cuando(e.diasRestantes)}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </>
+        )}
 
         <View style={s.seccion}>
           <Text style={s.seccionTitulo}>Tus cursos</Text>
@@ -82,6 +125,9 @@ export default function Inicio() {
           </Text>
         </View>
 
+        {cursos.length === 0 && (
+          <Text style={s.cursoNota}>Aún no tienes cursos. Toca «Ver todos» para agregarlos.</Text>
+        )}
         {cursos.map((c) => (
           <Pressable key={c.id} accessibilityRole="button" onPress={() => abrirTutor(c.nombre)} style={s.curso}>
             <View style={s.cursoFila}>
@@ -112,6 +158,21 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarTexto: { fontFamily: fuente.titulo, fontSize: 17, color: color.accion.suaveTexto },
+  evento: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: radio.lg,
+    borderWidth: 1,
+    borderColor: color.borde.sutil,
+    backgroundColor: color.fondo.superficie,
+  },
+  eventoIcono: { width: 36, height: 36, borderRadius: radio.md, backgroundColor: color.fondo.suave, alignItems: 'center', justifyContent: 'center' },
+  eventoTitulo: { fontFamily: fuente.tituloBold, fontSize: 14, color: color.texto.principal },
+  eventoFecha: { fontFamily: fuente.cuerpoMedio, fontSize: 12, color: color.texto.acento },
+  salir: { width: 40, height: 44, alignItems: 'center', justifyContent: 'center' },
+  recomendacion: { fontFamily: fuente.cuerpo, fontSize: 14, lineHeight: 20, color: color.texto.heroSuave },
   tutor: { backgroundColor: color.fondo.hero, borderRadius: 24, padding: 18, gap: 14 },
   tutorRotulo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   tutorRotuloTexto: { fontFamily: fuente.cuerpoFuerte, fontSize: 12, letterSpacing: 1.2, color: color.texto.heroSuave },

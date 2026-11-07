@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { config } from '../config.js';
-import type { CheckIn, Conversacion, Curso, Evaluacion, Mensaje, Repositorio, Usuario } from './tipos.js';
+import { ErrorApi } from '../lib/errores.js';
+import type { Actividad, CheckIn, Conversacion, Curso, Evaluacion, Mensaje, Repositorio, Usuario } from './tipos.js';
 
 /**
  * Repositorio sobre Supabase (Postgres). Listo pero AÚN NO CONECTADO: ver src/db/index.ts.
@@ -28,8 +29,14 @@ const aSnake = (o: object): Fila =>
 const aCamel = <T>(f: Fila): T =>
   Object.fromEntries(Object.entries(f).map(([k, v]) => [k.replace(/_([a-z])/g, (_, l) => l.toUpperCase()), v])) as T;
 
-function revisar<T>(r: { data: T | null; error: { message: string } | null }): T {
-  if (r.error) throw new Error(`Supabase: ${r.error.message}`);
+function revisar<T>(r: { data: T | null; error: { message: string; code?: string } | null }): T {
+  if (r.error) {
+    // La tabla no existe: falta ejecutar supabase/schema.sql (ver README).
+    if (r.error.code === 'PGRST205' || r.error.code === '42P01') {
+      throw new ErrorApi(503, 'esquema_desactualizado', 'Falta actualizar la base de datos: ejecuta supabase/schema.sql en Supabase.');
+    }
+    throw new Error(`Supabase: ${r.error.message}`);
+  }
   return r.data as T;
 }
 
@@ -57,6 +64,21 @@ export function crearRepositorioSupabase(sb: SupabaseClient = crearClienteSupaba
         uno<Curso>(sb.from('cursos').update(aSnake(c)).eq('usuario_id', u).eq('id', id).select().maybeSingle()),
       eliminar: async (u, id) => {
         const filas = revisar(await sb.from('cursos').delete().eq('usuario_id', u).eq('id', id).select('id'));
+        return (filas ?? []).length > 0;
+      },
+    },
+    actividades: {
+      listar: (u, cursoId) => {
+        let q = sb.from('actividades').select().eq('usuario_id', u);
+        if (cursoId) q = q.eq('curso_id', cursoId);
+        return varios<Actividad>(q.order('fecha'));
+      },
+      porId: (u, id) => uno<Actividad>(sb.from('actividades').select().eq('usuario_id', u).eq('id', id).maybeSingle()),
+      crear: async (d) => (await uno<Actividad>(sb.from('actividades').insert(aSnake(d)).select().single()))!,
+      actualizar: (u, id, c) =>
+        uno<Actividad>(sb.from('actividades').update(aSnake(c)).eq('usuario_id', u).eq('id', id).select().maybeSingle()),
+      eliminar: async (u, id) => {
+        const filas = revisar(await sb.from('actividades').delete().eq('usuario_id', u).eq('id', id).select('id'));
         return (filas ?? []).length > 0;
       },
     },
