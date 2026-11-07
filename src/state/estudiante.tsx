@@ -40,7 +40,7 @@ const EstudianteContext = createContext<Estado | null>(null);
 const CURSOS_DEMO: Curso[] = [
   { id: 'c1', nombre: 'Cálculo II', horasClase: 5, dificultad: 'complicado', parcial: '12 nov', avance: 42 },
   { id: 'c2', nombre: 'Física II', horasClase: 4, dificultad: 'normal', avance: 61 },
-  { id: 'c3', nombre: 'Estructuras de datos', horasClase: 4, dificultad: 'normal', avance: 78 },
+  { id: 'c3', nombre: 'Algoritmos y Estructuras de Datos', horasClase: 4, dificultad: 'normal', avance: 78 },
 ];
 
 export function EstudianteProvider({ children }: { children: ReactNode }) {

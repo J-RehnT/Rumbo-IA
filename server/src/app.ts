@@ -19,7 +19,7 @@ export function crearApp() {
   const api = express.Router();
 
   // Públicos
-  api.get('/salud', (_req, res) => res.json({ ok: true, tutor: config.anthropicKey ? 'claude' : 'demo' }));
+  api.get('/salud', (_req, res) => res.json({ ok: true, tutor: config.deepseekKey ? 'deepseek' : 'demo' }));
   api.get('/universidades', (_req, res) => res.json(UNIVERSIDADES));
   api.get('/recursos-apoyo', (_req, res) => res.json(RECURSOS_APOYO));
   api.use('/auth', auth);

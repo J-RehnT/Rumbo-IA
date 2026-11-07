@@ -1,9 +1,11 @@
 import { router } from 'expo-router';
 import { Calendar, Minus, Plus, X } from 'lucide-react-native';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Boton } from '../../components/Boton';
+import { Chip } from '../../components/Chip';
 import { PantallaRegistro } from '../../components/PantallaRegistro';
+import { CURSOS_ING_SOFTWARE_UPC } from '../../data/cursos';
 import { useEstudiante, type Curso, type Dificultad } from '../../state/estudiante';
 import { color, fuente, radio } from '../../theme';
 
@@ -16,17 +18,36 @@ const NIVELES: { valor: Dificultad; etiqueta: string }[] = [
 export default function Cursos() {
   const { cursos, agregarCurso, actualizarCurso, quitarCurso } = useEstudiante();
   const [nuevo, setNuevo] = useState('');
+  const [area, setArea] = useState(CURSOS_ING_SOFTWARE_UPC[0].area);
+
+  const buscarCurso = (nombre: string) =>
+    cursos.find((c) => normalizar(c.nombre) === normalizar(nombre));
+
   const agregar = () => {
-    if (!nuevo.trim()) return;
-    agregarCurso(nuevo.trim());
+    const nombre = nuevo.trim();
+    if (!nombre) return;
+    if (!buscarCurso(nombre)) agregarCurso(nombre);
     setNuevo('');
   };
+
+  const alternar = (nombre: string) => {
+    const existente = buscarCurso(nombre);
+    if (existente) quitarCurso(existente.id);
+    else agregarCurso(nombre);
+  };
+
+  // Con texto escrito se busca en todo el catálogo; si no, se muestra el área elegida.
+  const sugerencias = useMemo(() => {
+    const consulta = normalizar(nuevo.trim());
+    if (!consulta) return CURSOS_ING_SOFTWARE_UPC.find((a) => a.area === area)?.cursos ?? [];
+    return CURSOS_ING_SOFTWARE_UPC.flatMap((a) => a.cursos).filter((c) => normalizar(c).includes(consulta));
+  }, [nuevo, area]);
 
   return (
     <PantallaRegistro
       paso={3}
       titulo="¿Qué cursos llevas este ciclo?"
-      bajada="Escríbelos como figuran en tu matrícula."
+      bajada="Elígelos del catálogo o escríbelos como figuran en tu matrícula."
       pie={<Boton etiqueta="Crear mi rumbo" onPress={() => router.replace('/inicio')} />}
     >
       <View style={s.agregar}>
@@ -34,7 +55,7 @@ export default function Cursos() {
           value={nuevo}
           onChangeText={setNuevo}
           onSubmitEditing={agregar}
-          placeholder="Ej. Física II"
+          placeholder="Busca o escribe un curso"
           placeholderTextColor={color.texto.secundario}
           returnKeyType="done"
           style={s.input}
@@ -42,6 +63,46 @@ export default function Cursos() {
         <Pressable accessibilityRole="button" accessibilityLabel="Agregar curso" onPress={agregar} style={s.mas}>
           <Plus size={22} color={color.texto.invertido} />
         </Pressable>
+      </View>
+
+      <View style={s.catalogo}>
+        <Text style={s.catalogoTitulo}>Ingeniería de Software · UPC</Text>
+
+        {!nuevo.trim() && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.areas}
+            keyboardShouldPersistTaps="handled"
+          >
+            {CURSOS_ING_SOFTWARE_UPC.map((a) => {
+              const activa = a.area === area;
+              return (
+                <Pressable
+                  key={a.area}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: activa }}
+                  onPress={() => setArea(a.area)}
+                  style={[s.area, activa && s.areaActiva]}
+                >
+                  <Text style={[s.areaTexto, activa && s.areaTextoActivo]}>{a.area}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
+
+        {sugerencias.length > 0 ? (
+          <View style={s.chips}>
+            {sugerencias.map((nombre) => (
+              <Chip key={nombre} etiqueta={nombre} activo={!!buscarCurso(nombre)} onPress={() => alternar(nombre)} />
+            ))}
+          </View>
+        ) : (
+          <Text style={s.sinResultados}>
+            No está en el catálogo. Toca + para agregar «{nuevo.trim()}».
+          </Text>
+        )}
       </View>
 
       <View style={{ gap: 12 }}>
@@ -123,8 +184,27 @@ function TarjetaCurso({ curso, onCambiar, onQuitar }: { curso: Curso; onCambiar:
   );
 }
 
+/** Compara nombres sin distinguir mayúsculas ni tildes (ej. "calculo ii" = "Cálculo II"). */
+function normalizar(texto: string) {
+  return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
 const s = StyleSheet.create({
   agregar: { flexDirection: 'row', gap: 10 },
+  catalogo: { gap: 12 },
+  catalogoTitulo: { fontFamily: fuente.cuerpoFuerte, fontSize: 13, color: color.texto.secundario },
+  areas: { gap: 8 },
+  area: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radio.full,
+    backgroundColor: color.fondo.suave,
+  },
+  areaActiva: { backgroundColor: color.texto.acento },
+  areaTexto: { fontFamily: fuente.cuerpoMedio, fontSize: 12, color: color.texto.acento },
+  areaTextoActivo: { color: color.texto.invertido, fontFamily: fuente.cuerpoFuerte },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  sinResultados: { fontFamily: fuente.cuerpo, fontSize: 13, color: color.texto.secundario },
   input: {
     flex: 1,
     minHeight: 52,

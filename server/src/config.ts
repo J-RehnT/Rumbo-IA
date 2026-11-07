@@ -5,9 +5,9 @@ export const config = {
   jwtSecreto: process.env.JWT_SECRET ?? 'rumbo-dev-secreto-solo-local',
   jwtExpira: process.env.JWT_EXPIRA ?? '7d',
   bcryptRondas: Number(process.env.BCRYPT_ROUNDS ?? 10),
-  anthropicKey: process.env.ANTHROPIC_API_KEY || undefined,
-  tutorModelo: process.env.TUTOR_MODELO ?? 'claude-opus-5-5',
-  tutorEsfuerzo: (process.env.TUTOR_ESFUERZO ?? 'low') as 'low' | 'medium' | 'high',
+  deepseekKey: process.env.DEEPSEEK_API_KEY || undefined,
+  deepseekUrl: (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/+$/, ''),
+  tutorModelo: process.env.TUTOR_MODELO || 'deepseek-flash',
   supabaseUrl: process.env.SUPABASE_URL || undefined,
   supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || undefined,
 };

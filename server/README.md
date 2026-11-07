@@ -13,7 +13,7 @@ npm run smoke          # recorre todos los endpoints y verifica las respuestas
 - **Contraseñas:** se hashean con bcrypt (`bcryptjs`, `BCRYPT_ROUNDS`, 10 por defecto). Nunca se devuelve el hash.
 - **Sesión:** `POST /auth/login` o `/auth/registro` devuelven un `token` JWT. Envíalo como `Authorization: Bearer <token>`.
 - **Datos:** por ahora se guardan **en memoria** (se borran al reiniciar). Supabase está listo pero sin conectar (ver abajo).
-- **Tutor:** con `ANTHROPIC_API_KEY` responde Claude (`TUTOR_MODELO`, por defecto `claude-opus-5-5`). Sin clave responde ejemplos.
+- **Tutor:** con `DEEPSEEK_API_KEY` responde DeepSeek (`TUTOR_MODELO`, por defecto `deepseek-flash`; también `deepseek-v4-pro`). Sin clave responde ejemplos. La clave se crea en https://platform.deepseek.com.
 - **Errores:** siempre `{ error: { codigo, mensaje, detalles? } }`. Los mensajes están en español y se pueden mostrar tal cual.
 
 ## Endpoints
@@ -22,7 +22,7 @@ Todo va bajo `/api`. 🔓 = público, el resto pide token.
 
 | Método | Ruta | Cuerpo | Respuesta |
 |---|---|---|---|
-| 🔓 GET | `/salud` | | `{ ok, tutor: 'claude' \| 'demo' }` |
+| 🔓 GET | `/salud` | | `{ ok, tutor: 'deepseek' \| 'demo' }` |
 | 🔓 GET | `/universidades` | | `[{ sigla, nombre }]` (las 10 del registro) |
 | 🔓 GET | `/recursos-apoyo` | | Línea 113 y Bienestar |
 | 🔓 POST | `/auth/registro` | `{ nombre, correo, password }` (mín. 8) | `201 { token, usuario }` · `409` si el correo existe |
@@ -72,7 +72,7 @@ src/
   db/               tipos + Repositorio, memoria.ts (activo), supabase.ts (listo)
   lib/              password.ts (bcrypt), jwt.ts, errores
   routes/           auth, me, cursos, bienestar (inicio/check-in/progreso), tutor
-  services/         apoyo.ts (regla de derivación), tutor.ts (Claude), catálogo
+  services/         apoyo.ts (regla de derivación), tutor.ts (DeepSeek), catálogo
 supabase/schema.sql
 scripts/smoke.ts
 ```

@@ -1,4 +1,3 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../config.js';
 import type { Curso, Usuario } from '../db/tipos.js';
 
@@ -10,7 +9,10 @@ export type ContextoTutor = {
   curso?: Pick<Curso, 'nombre' | 'dificultad'> | null;
 };
 
-const cliente = config.anthropicKey ? new Anthropic({ apiKey: config.anthropicKey }) : null;
+type RespuestaDeepSeek = {
+  choices?: { message?: { content?: string | null }; finish_reason?: string }[];
+  error?: { message?: string };
+};
 
 function promptSistema(ctx: ContextoTutor): string {
   const quien = [
@@ -39,34 +41,38 @@ function respuestaDemo(historial: MensajeChat[], ctx: ContextoTutor): string {
   return `Buena pregunta. Te lo explico pensando en que vas en ${ciclo}${ctx.carrera ? ` de ${ctx.carrera}` : ''}: vamos paso a paso y me dices dónde te trabas.`;
 }
 
-/** Devuelve la respuesta del tutor. Sin ANTHROPIC_API_KEY responde en modo demo. */
+/** Devuelve la respuesta del tutor con DeepSeek. Sin DEEPSEEK_API_KEY responde en modo demo. */
 export async function responderTutor(historial: MensajeChat[], ctx: ContextoTutor): Promise<string> {
-  if (!cliente) return respuestaDemo(historial, ctx);
+  if (!config.deepseekKey) return respuestaDemo(historial, ctx);
 
-  const messages: Anthropic.Beta.BetaMessageParam[] = historial.map((m) => ({
-    role: m.autor === 'estudiante' ? 'user' : 'assistant',
-    content: m.texto,
-  }));
+  const messages = [
+    { role: 'system', content: promptSistema(ctx) },
+    ...historial.map((m) => ({
+      role: m.autor === 'estudiante' ? 'user' : 'assistant',
+      content: m.texto,
+    })),
+  ];
 
-  const r = await cliente.beta.messages.create({
-    model: config.tutorModelo,
-    max_tokens: 4000,
-    system: promptSistema(ctx),
-    output_config: { effort: config.tutorEsfuerzo },
-    // Si el modelo declina por un falso positivo de seguridad, la API reintenta con otro modelo.
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
-    messages,
+  const res = await fetch(`${config.deepseekUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${config.deepseekKey}`,
+    },
+    body: JSON.stringify({ model: config.tutorModelo, messages, max_tokens: 4000, stream: false }),
+    signal: AbortSignal.timeout(60_000),
   });
 
-  if (r.stop_reason === 'refusal') {
+  const r = (await res.json().catch(() => ({}))) as RespuestaDeepSeek;
+  if (!res.ok) {
+    throw new Error(`DeepSeek respondió ${res.status}: ${r.error?.message ?? res.statusText}`);
+  }
+
+  const opcion = r.choices?.[0];
+  if (opcion?.finish_reason === 'content_filter') {
     return 'Prefiero no responder eso, pero con gusto te ayudo con otro tema del curso.';
   }
-  return r.content
-    .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')
-    .map((b) => b.text)
-    .join('\n')
-    .trim();
+  return (opcion?.message?.content ?? '').trim();
 }
 
 export function contextoDe(u: Usuario | null, curso?: Curso | null): ContextoTutor {
