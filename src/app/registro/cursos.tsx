@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Boton } from '../../components/Boton';
 import { PantallaRegistro } from '../../components/PantallaRegistro';
+import { enDias, fechaCorta } from '../../lib/fechas';
 import { useEstudiante, type Curso, type Dificultad } from '../../state/estudiante';
 import { color, fuente, radio } from '../../theme';
 
@@ -114,9 +115,12 @@ function TarjetaCurso({ curso, onCambiar, onQuitar }: { curso: Curso; onCambiar:
       <View style={[s.fila, { justifyContent: 'flex-start', gap: 8 }]}>
         <Calendar size={16} color={color.texto.acento} />
         {curso.parcial ? (
-          <Text style={s.parcial}>Próximo parcial: {curso.parcial}</Text>
+          <Text style={s.parcial}>Próximo parcial: {fechaCorta(curso.parcial)}</Text>
         ) : (
-          <Text style={s.parcialVacio}>Agregar fecha del próximo parcial (opcional)</Text>
+          // Sin selector de fecha todavía: propone una semana desde hoy.
+          <Text style={s.parcialVacio} accessibilityRole="button" onPress={() => onCambiar({ parcial: enDias(7) })}>
+            Agregar fecha del próximo parcial (opcional)
+          </Text>
         )}
       </View>
     </View>
