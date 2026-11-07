@@ -1,56 +1,47 @@
-# Welcome to your Expo app 👋
+# Rumbo-IA
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Tutor con IA generativa que explica los temas difíciles adaptado a tu ciclo académico y, si nota semanas pesadas, sugiere con cuidado hablar con Bienestar.
 
-## Get started
+App móvil en **Expo + React Native** (expo-router, TypeScript), construida a partir del diseño verde de Figma.
 
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Cómo correrla
 
 ```bash
-npm run reset-project
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+Escanea el QR con **Expo Go** (Android / iOS) o presiona `w` para abrirla en el navegador.
 
-### Other setup steps
+## Pantallas
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+| Ruta | Pantalla |
+|---|---|
+| `/` | Inicio (hero del arco): "Empezar mi ruta" y "Ya tengo cuenta" |
+| `/registro/cuenta` | Registro 1 · Cuenta |
+| `/registro/universidad` | Registro 2 · Universidad, carrera y ciclo (+ selector de 10 universidades) |
+| `/registro/cursos` | Registro 3 · Cursos con horas de clase, dificultad y parcial |
+| `/inicio`, `/tutor`, `/progreso` | Pestañas de la app |
+| `/checkin` | Check-in de bienestar (modal) |
 
-## Learn more
+Todavía no hay backend: **ningún campo es obligatorio** y todos los botones avanzan, así se puede recorrer la app completa sin registrarse. "Ya tengo cuenta" e "Inicia sesión" entran directo a la app.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Estructura
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```
+src/
+  app/            rutas (expo-router)
+  components/     Botón, Campo, Chip, Pasos, ArcoHero, Logo, TarjetaApoyo, SelectorUniversidad…
+  data/           universidades
+  state/          estado del estudiante (perfil, cursos, check-ins) en memoria
+  lib/tutor.ts    punto único para conectar la IA
+  theme.ts        tokens de Figma: colores, espaciado, radios, tipografía
+```
 
-## Join the community
+## Conectar la IA
 
-Join our community of developers creating universal apps.
+`src/lib/tutor.ts` responde con ejemplos mientras no exista backend. Cuando lo tengan, define `EXPO_PUBLIC_TUTOR_URL` con la URL de su endpoint (recibe `{ mensajes, contexto }` y devuelve `{ texto }`). La clave de la API debe vivir en ese backend, nunca dentro de la app.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Derivación a Bienestar
+
+`sugerirApoyo` en `src/state/estudiante.tsx` decide cuándo mostrar la tarjeta de apoyo en Mi progreso (ánimo bajo, menos de 6 h de sueño o carga pesada en el último check-in). Ahí se afina la regla con el desempeño real.

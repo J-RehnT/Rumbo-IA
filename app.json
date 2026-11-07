@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "mi-app-react-native",
-    "slug": "mi-app-react-native",
+    "name": "Rumbo",
+    "slug": "rumbo-ia",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "miappreactnative",
-    "userInterfaceStyle": "automatic",
+    "scheme": "rumbo",
+    "userInterfaceStyle": "light",
     "ios": {
       "icon": "./assets/expo.icon"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#F2FAF5",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -28,7 +28,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#F2FAF5",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
