@@ -25,6 +25,8 @@ export type ContextoPlan = {
   cursos: (Curso & { promedio: number | null })[];
   actividades: Actividad[];
   checkins: CheckIn[];
+  /** Objetivos y proyección de la semana (check-in), en texto. */
+  semana?: string | null;
 };
 
 const HORIZONTE_DIAS = 14;
@@ -142,6 +144,7 @@ async function consejosPorIA(ctx: ContextoPlan): Promise<ItemPlan[]> {
     cursos: ctx.cursos.map((c) => ({ id: c.id, nombre: c.nombre, dificultad: c.dificultad, promedio: c.promedio })),
     proximas: ctx.actividades.map((a) => ({ id: a.id, cursoId: a.cursoId, tipo: a.tipo, titulo: a.titulo, fecha: a.fecha, diasRestantes: diasHasta(a.fecha) })),
     ultimosCheckins: ctx.checkins.slice(-3).map((c) => ({ animo: c.animo, horasSueno: c.horasSueno, carga: c.carga, fecha: c.fecha.slice(0, 10) })),
+    planDeLaSemana: ctx.semana ?? null,
   };
 
   const pedir = () => llamarDeepSeek(
@@ -155,6 +158,7 @@ Reglas:
 - categoria "metodo": propone un método de estudio concreto para un curso y su evaluación (simulacro de examen, repaso espaciado, práctica de recuperación, técnica Feynman, Pomodoro, mapas conceptuales, práctica intercalada, enseñar a un compañero…). Varía los métodos entre cursos y semanas; si un curso tiene promedio bajo o es "complicado", sugiere cambiar de método.
 - categoria "recordatorio": sesiones de estudio concretas ("hoy 40 min de…") unos días antes de cada evaluación o entrega. No repitas los avisos de "mañana" ni de "hoy es tu examen": esos ya existen.
 - categoria "bienestar": solo si el ánimo es bajo, duerme poco o la carga es pesada; tono cálido, sin diagnosticar.
+- Si hay "planDeLaSemana": alinea las sesiones y métodos con sus objetivos (nómbralos), respeta el método que eligió y, si proyecta una semana "intensa", propone sesiones cortas y realistas; si es "tranquila", aprovecha para adelantar.
 - Usa los id exactos de cursos y actividades que te doy (o null). titulo de máximo 45 caracteres, texto de máximo 180, español neutro y cercano, tutea, sin emojis.`,
       },
       { role: 'user', content: JSON.stringify(datos) },

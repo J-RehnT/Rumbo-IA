@@ -1,20 +1,20 @@
 import { router, useFocusEffect } from 'expo-router';
-import { ArrowRight, Bell, ChevronRight, Compass, LogOut, Smile, Sparkles } from 'lucide-react-native';
+import { ArrowRight, Bell, CalendarDays, ChevronRight, Clock, Compass, GraduationCap, LogOut, Smile, Sparkles } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BarraAvance } from '../../components/BarraAvance';
 import { tipoDe } from '../../data/actividades';
+import { horas, simularHoras } from '../../data/simulacion';
 import { cuando, fechaLarga } from '../../lib/fechas';
+import { abrirPreparame, sePuedePreparar } from '../../lib/preparame';
 import { useEstudiante, type Curso } from '../../state/estudiante';
 import { color, fuente, radio } from '../../theme';
 
-function nota(c: Curso) {
-  if (c.avance >= 75) return 'Vas muy bien, sigue así';
-  if (c.avance >= 55) return 'Último repaso: ayer';
-  if (c.avance > 0) return 'Este tema te está costando, repasemos';
-  return 'Aún sin práctica';
-}
+const DIFICULTAD = {
+  facil: { nombre: 'Fácil', fondo: color.fondo.suave, texto: color.texto.acento },
+  normal: { nombre: 'Normal', fondo: color.accion.suave, texto: color.accion.suaveTexto },
+  complicado: { nombre: 'Complicado', fondo: color.accion.suave, texto: color.accion.suaveTexto },
+} as const;
 
 export default function Inicio() {
   const { perfil, cursos, recomendacion, proximas, avisos, avisosNoLeidos, actualizarAvisos, checkinPendiente, refrescar, cerrarSesion } =
@@ -155,6 +155,18 @@ export default function Inicio() {
                       {fechaLarga(e.fecha)} · {cuando(e.diasRestantes)}
                     </Text>
                   </View>
+                  {sePuedePreparar(e.tipo) && (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Prepárame para ${e.titulo}`}
+                      onPress={() => abrirPreparame(e)}
+                      hitSlop={6}
+                      style={s.preparame}
+                    >
+                      <Sparkles size={14} color={color.texto.invertido} />
+                      <Text style={s.preparameTexto}>Prepárame</Text>
+                    </Pressable>
+                  )}
                 </Pressable>
               );
             })}
@@ -171,16 +183,43 @@ export default function Inicio() {
         {cursos.length === 0 && (
           <Text style={s.cursoNota}>Aún no tienes cursos. Toca «Ver todos» para agregarlos.</Text>
         )}
-        {cursos.map((c) => (
-          <Pressable key={c.id} accessibilityRole="button" onPress={() => abrirTutor(c.nombre)} style={s.curso}>
-            <View style={s.cursoFila}>
-              <Text style={s.cursoNombre}>{c.nombre}</Text>
-              <Text style={s.cursoPct}>{c.avance}%</Text>
-            </View>
-            <BarraAvance valor={c.avance} />
-            <Text style={s.cursoNota}>{nota(c)}</Text>
-          </Pressable>
-        ))}
+        {cursos.map((c) => {
+          const evaluacion = proximas.find((e) => e.cursoId === c.id && (e.tipo === 'parcial' || e.tipo === 'examen'));
+          const horasSemana = simularHoras([c])[0].actual; // simulado hasta registrar horas reales
+          const etiqueta = DIFICULTAD[c.dificultad];
+          return (
+            <Pressable key={c.id} accessibilityRole="button" onPress={() => abrirTutor(c.nombre)} style={s.curso}>
+              <View style={s.cursoFila}>
+                <Text style={s.cursoNombre} numberOfLines={1}>
+                  {c.nombre}
+                </Text>
+                <View style={[s.dificultad, { backgroundColor: etiqueta.fondo }]}>
+                  <Text style={[s.dificultadTexto, { color: etiqueta.texto }]}>{etiqueta.nombre}</Text>
+                </View>
+              </View>
+              <View style={s.datos}>
+                {evaluacion && (
+                  <View style={s.dato}>
+                    <CalendarDays size={18} color={color.texto.acento} />
+                    <Text style={[s.datoTexto, { color: color.texto.acento, fontFamily: fuente.cuerpoFuerte }]}>
+                      {evaluacion.tipo === 'examen' ? 'Final' : 'Parcial'} {cuando(evaluacion.diasRestantes)}
+                    </Text>
+                  </View>
+                )}
+                <View style={s.dato}>
+                  <Clock size={18} color={color.texto.secundario} />
+                  <Text style={s.datoTexto}>{horas(horasSemana)} esta semana</Text>
+                </View>
+                <View style={s.dato}>
+                  <GraduationCap size={18} color={color.texto.secundario} />
+                  <Text style={s.datoTexto}>
+                    {c.promedio === null ? 'Sin notas aún' : `Promedio ${String(c.promedio).replace('.', ',')} / 20`}
+                  </Text>
+                </View>
+              </View>
+            </Pressable>
+          );
+        })}
       </ScrollView>
     </SafeAreaView>
   );
@@ -201,6 +240,16 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarTexto: { fontFamily: fuente.titulo, fontSize: 17, color: color.accion.suaveTexto },
+  preparame: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radio.full,
+    backgroundColor: color.accion.primaria,
+  },
+  preparameTexto: { fontFamily: fuente.cuerpoFuerte, fontSize: 12, color: color.texto.invertido },
   campana: { width: 40, height: 44, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
   insignia: {
     position: 'absolute',
@@ -308,7 +357,11 @@ const s = StyleSheet.create({
     backgroundColor: color.fondo.superficie,
   },
   cursoFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cursoNombre: { fontFamily: fuente.titulo, fontSize: 16, color: color.texto.principal },
-  cursoPct: { fontFamily: fuente.cuerpo, fontSize: 13, color: color.texto.secundario },
+  cursoNombre: { flex: 1, fontFamily: fuente.titulo, fontSize: 18, color: color.texto.principal },
   cursoNota: { fontFamily: fuente.cuerpo, fontSize: 13, color: color.texto.secundario },
+  dificultad: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: radio.full },
+  dificultadTexto: { fontFamily: fuente.cuerpoFuerte, fontSize: 13 },
+  datos: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 18, rowGap: 8 },
+  dato: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  datoTexto: { fontFamily: fuente.cuerpoMedio, fontSize: 14, color: color.texto.principal },
 });

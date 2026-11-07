@@ -67,6 +67,18 @@ create table if not exists notificaciones (
 );
 create index if not exists notificaciones_usuario_idx on notificaciones(usuario_id, programada_para);
 
+-- Plan semanal del check-in: objetivos por curso o método y cómo se proyecta la semana.
+create table if not exists metas_semanales (
+  id             uuid primary key default gen_random_uuid(),
+  usuario_id     uuid not null references usuarios(id) on delete cascade,
+  semana         date not null,                -- lunes de la semana
+  objetivos      jsonb not null default '[]',  -- [{ id, texto, cursoId, metodo, cumplido }]
+  proyeccion     text check (proyeccion in ('tranquila','normal','intensa')),
+  comentario     text,
+  actualizado_en timestamptz not null default now(),
+  unique (usuario_id, semana)
+);
+
 create table if not exists checkins (
   id          uuid primary key default gen_random_uuid(),
   usuario_id  uuid not null references usuarios(id) on delete cascade,
@@ -102,6 +114,7 @@ alter table cursos         enable row level security;
 alter table evaluaciones   enable row level security;
 alter table actividades    enable row level security;
 alter table notificaciones enable row level security;
+alter table metas_semanales enable row level security;
 alter table checkins       enable row level security;
 alter table conversaciones enable row level security;
 alter table mensajes       enable row level security;

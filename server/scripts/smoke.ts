@@ -82,6 +82,22 @@ const agenda = await llamar('GET', '/actividades');
 console.log(`   agenda: ${agenda.length} actividades · primera: ${agenda[0].titulo} de ${agenda[0].curso} en ${agenda[0].diasRestantes} día(s)`);
 const ini2 = await llamar('GET', '/inicio');
 console.log(`   inicio: ${ini2.proximas.length} próximas · ${ini2.recomendacion.texto}`);
+// ---- Plan semanal (check-in) y modo Prepárame ----
+const vacia = await llamar('GET', '/metas/semana');
+if (vacia.objetivos.length !== 0) throw new Error('La semana empieza sin objetivos');
+const semana = await llamar('PUT', '/metas/semana', {
+  proyeccion: 'intensa',
+  comentario: 'Tengo parcial y entrega la misma semana',
+  objetivos: [{ id: 'o1', texto: 'Resolver 10 integrales por partes', cursoId: calculo.id, metodo: 'Simulacro de examen', cumplido: false }],
+});
+if (semana.objetivos[0]?.cursoId !== calculo.id) throw new Error('El objetivo debe quedar ligado al curso');
+await llamar('PUT', '/metas/semana', { objetivos: [{ id: 'x', texto: '' }] }, 400);
+const prep = await llamar('POST', '/tutor/preguntar', {
+  mensajes: [{ autor: 'estudiante', texto: 'Prepárame para el Examen parcial' }],
+  contexto: { ciclo: 5, carrera: 'Ing. de Sistemas', curso: { nombre: 'Cálculo II', dificultad: 'complicado' }, preparacion: { titulo: 'Examen parcial', tipo: 'parcial', diasRestantes: 5 } },
+});
+console.log('   prepárame:', prep.texto.replace(/\s+/g, ' ').slice(0, 140));
+
 // ---- Notificaciones del tutor ----
 const plan = await llamar('POST', '/notificaciones/generar', { forzar: true });
 if (!(plan.generadas > 0)) throw new Error('El plan de notificaciones debería tener avisos');

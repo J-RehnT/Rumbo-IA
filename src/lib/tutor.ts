@@ -3,10 +3,18 @@ import { api, apiConfigurada } from './api';
 
 export type Mensaje = { id: string; autor: 'estudiante' | 'tutor'; texto: string };
 
+export type Preparacion = {
+  titulo: string;
+  tipo: 'parcial' | 'examen' | 'practica' | 'entrega_grupal';
+  diasRestantes: number;
+};
+
 export type ContextoTutor = {
   ciclo: number;
   carrera: string;
   curso?: Curso;
+  /** Modo "Prepárame": ejercicios tipo examen para una evaluación de la agenda. */
+  preparacion?: Preparacion;
 };
 
 /**
@@ -21,6 +29,7 @@ export async function preguntarTutor(mensajes: Mensaje[], contexto: ContextoTuto
         ciclo: contexto.ciclo,
         carrera: contexto.carrera,
         curso: contexto.curso && { nombre: contexto.curso.nombre, dificultad: contexto.curso.dificultad },
+        preparacion: contexto.preparacion,
       },
     });
     return r.texto;

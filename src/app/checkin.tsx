@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
 import { Annoyed, Frown, Laugh, Layers, Meh, Moon, Smile, X, type LucideIcon } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aviso } from '../components/Aviso';
 import { Boton } from '../components/Boton';
+import { PlanSemanal, type Plan } from '../components/PlanSemanal';
 import { Tarjeta } from '../components/Tarjeta';
-import { mensajeDeError } from '../lib/api';
+import { api, mensajeDeError } from '../lib/api';
 import { useEstudiante, type Animo, type Carga } from '../state/estudiante';
 import { color, fuente, radio } from '../theme';
 
@@ -25,20 +26,42 @@ const CARGAS: { valor: Carga; etiqueta: string }[] = [
 const MAX_SUENO = 12;
 
 export default function CheckIn() {
-  const { registrarCheckIn } = useEstudiante();
+  const { registrarCheckIn, cursos, actualizarAvisos } = useEstudiante();
   const [animo, setAnimo] = useState<Animo>(2);
   const [sueno, setSueno] = useState(7);
   const [carga, setCarga] = useState<Carga>('normal');
   const [anchoPista, setAnchoPista] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [plan, setPlan] = useState<Plan>({ objetivos: [], proyeccion: null, comentario: null });
+  const [metodos, setMetodos] = useState<string[]>([]);
+  const [planDisponible, setPlanDisponible] = useState(true);
+  const [check, setCheck] = useState(false); // ya guardó el check-in (por si falla solo el plan)
+
+  // Carga el plan de esta semana para seguir editándolo.
+  useEffect(() => {
+    api<Plan & { metodos: string[] }>('GET', '/metas/semana')
+      .then((r) => {
+        setPlan({ objetivos: r.objetivos, proyeccion: r.proyeccion, comentario: r.comentario });
+        setMetodos(r.metodos);
+      })
+      .catch(() => setPlanDisponible(false));
+  }, []);
 
   const guardar = async () => {
     if (enviando) return;
     setError(null);
     setEnviando(true);
     try {
-      await registrarCheckIn({ animo, horasSueno: sueno, carga });
+      if (!check) {
+        await registrarCheckIn({ animo, horasSueno: sueno, carga });
+        setCheck(true);
+      }
+      if (planDisponible) {
+        await api('PUT', '/metas/semana', { ...plan, comentario: plan.comentario?.trim() || null });
+        // El tutor rehace sus avisos con los objetivos nuevos (sin hacer esperar al estudiante).
+        actualizarAvisos(true).catch(() => {});
+      }
       router.back();
     } catch (e) {
       setError(mensajeDeError(e));
@@ -155,6 +178,12 @@ export default function CheckIn() {
             })}
           </View>
         </Tarjeta>
+
+        {planDisponible ? (
+          <PlanSemanal plan={plan} onCambiar={setPlan} cursos={cursos} metodos={metodos} />
+        ) : (
+          <Text style={s.privado}>El plan semanal estará disponible cuando se actualice la base de datos.</Text>
+        )}
       </ScrollView>
 
       <View style={s.pie}>

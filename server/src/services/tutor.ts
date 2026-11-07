@@ -7,6 +7,10 @@ export type ContextoTutor = {
   carrera?: string | null;
   ciclo?: number | null;
   curso?: Pick<Curso, 'nombre' | 'dificultad'> | null;
+  /** Plan semanal del check-in (objetivos y proyección), en texto. */
+  semana?: string | null;
+  /** Instrucciones del modo "Prepárame" (ejercicios tipo examen). */
+  preparacion?: string | null;
 };
 
 type RespuestaDeepSeek = {
@@ -27,8 +31,12 @@ function promptSistema(ctx: ContextoTutor): string {
 ${quien}
 Adapta la profundidad a su ciclo: en ciclos iniciales usa analogías y pasos pequeños; en ciclos avanzados puedes ser más técnico.
 Explica paso a paso, con un ejemplo concreto, y cierra con una pregunta corta para comprobar que entendió.
-Sé breve (máximo unos 150 palabras salvo que pida más). No hagas tareas evaluadas por el estudiante: guíalo para que llegue solo.
-Si el estudiante expresa agobio, tristeza o estrés fuerte, valida cómo se siente y sugiere con tacto hablar con Bienestar de su universidad o la Línea 113 (opción 5).`;
+Sé breve (máximo unos 150 palabras salvo que pida más). Escribe texto plano: sin markdown, sin asteriscos ni almohadillas (el chat no los muestra con formato). No hagas tareas evaluadas por el estudiante: guíalo para que llegue solo.
+Si el estudiante expresa agobio, tristeza o estrés fuerte, valida cómo se siente y sugiere con tacto hablar con Bienestar de su universidad o la Línea 113 (opción 5).${
+    ctx.semana
+      ? `\n\nPLAN DE SU SEMANA (lo registró en su check-in; úsalo para que tus métodos de estudio encajen con sus objetivos y su carga, y menciónalo cuando ayude):\n${ctx.semana}`
+      : ''
+  }${ctx.preparacion ? `\n${ctx.preparacion}` : ''}`;
 }
 
 function respuestaDemo(historial: MensajeChat[], ctx: ContextoTutor): string {

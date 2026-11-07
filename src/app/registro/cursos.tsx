@@ -224,7 +224,9 @@ function TarjetaCurso({
       </View>
 
       <View style={s.fila}>
-        <Text style={s.rotulo}>Avance: {curso.avance}%</Text>
+        <Text style={s.rotulo}>
+          {curso.promedio === null ? 'Sin notas aún' : `Promedio ${String(curso.promedio).replace('.', ',')} / 20`}
+        </Text>
         <View style={s.notaFila}>
           <TextInput
             value={nota}

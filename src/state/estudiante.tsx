@@ -12,7 +12,7 @@ export type Curso = {
   horasClase: number;
   dificultad: Dificultad;
   parcial?: string; // "12 nov" (para mostrar)
-  avance: number; // 0–100 según las notas registradas
+  promedio: number | null; // promedio de notas (0–20); null si aún no hay notas
 };
 export type Animo = 0 | 1 | 2 | 3 | 4; // Agotado … Genial
 export type Carga = 'ligera' | 'normal' | 'pesada';
@@ -91,7 +91,7 @@ type CursoApi = {
   horasClase: number;
   dificultad: Dificultad;
   proximoParcial: string | null;
-  avance: number | null;
+  promedio: number | null;
 };
 type InicioApi = {
   recomendacion: Recomendacion | null;
@@ -110,7 +110,7 @@ const aCurso = (c: CursoApi): Curso => ({
   horasClase: c.horasClase,
   dificultad: c.dificultad,
   parcial: c.proximoParcial ? fechaCorta(c.proximoParcial) : undefined,
-  avance: c.avance ?? 0,
+  promedio: c.promedio,
 });
 
 // La API usa 'OTRA'; la app usa 'Otra'.

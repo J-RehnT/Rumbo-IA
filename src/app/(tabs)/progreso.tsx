@@ -1,17 +1,19 @@
 import { useFocusEffect } from 'expo-router';
 import { TrendingUp } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Line, Polyline } from 'react-native-svg';
+import { MiSemana } from '../../components/MiSemana';
 import { TarjetaApoyo } from '../../components/TarjetaApoyo';
+import { useEstudiante } from '../../state/estudiante';
 import { api, mensajeDeError } from '../../lib/api';
 import { color, fuente, radio } from '../../theme';
 
 type Semana = { semana: string; aciertos: number | null; bienestar: number | null }; // 0–1 o null sin datos
 type Progreso = {
   semanas: Semana[];
-  cursos: { id: string; nombre: string; avance: number | null; evaluaciones: number }[];
+  cursos: { id: string; nombre: string; promedio: number | null; evaluaciones: number }[];
   tarjetaApoyo: { mostrar: boolean };
 };
 
@@ -47,6 +49,8 @@ function Grafico({ ancho, semanas }: { ancho: number; semanas: Semana[] }) {
 }
 
 export default function Progreso() {
+  const { cursos } = useEstudiante();
+  const [vista, setVista] = useState<'general' | 'semana'>('general');
   const [datos, setDatos] = useState<Progreso | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [descartado, setDescartado] = useState(false);
@@ -74,6 +78,31 @@ export default function Progreso() {
           <Text style={s.titulo}>Mi progreso</Text>
         </View>
 
+        <View style={s.segmentos} accessibilityRole="tablist">
+          {(
+            [
+              ['general', 'General'],
+              ['semana', 'Mi semana'],
+            ] as const
+          ).map(([valor, etiqueta]) => {
+            const activo = vista === valor;
+            return (
+              <Pressable
+                key={valor}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: activo }}
+                onPress={() => setVista(valor)}
+                style={[s.segmento, activo && s.segmentoActivo]}
+              >
+                <Text style={[s.segmentoTexto, activo && s.segmentoTextoActivo]}>{etiqueta}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {vista === 'semana' && <MiSemana cursos={cursos} />}
+        {vista === 'general' && (
+          <>
         {error && <Text style={s.vacio}>{error}</Text>}
 
         <View style={s.tarjeta}>
@@ -111,20 +140,22 @@ export default function Progreso() {
         <View style={s.lista}>
           {(datos?.cursos ?? []).length === 0 && <Text style={[s.vacio, { paddingVertical: 14 }]}>Aún no tienes cursos.</Text>}
           {(datos?.cursos ?? []).map((c, i, todos) => {
-            const sube = (c.avance ?? 0) >= 75;
+            const sube = (c.promedio ?? 0) >= 14;
             return (
               <View key={c.id} style={[s.fila, i < todos.length - 1 && s.filaBorde]}>
                 <Text style={s.tema}>{c.nombre}</Text>
                 <View style={s.valorFila}>
                   {sube && <TrendingUp size={16} color={color.texto.acento} />}
                   <Text style={[s.valor, sube && { color: color.texto.acento }]}>
-                    {c.avance === null ? 'Sin notas aún' : `${c.avance}%`}
+                    {c.promedio === null ? 'Sin notas aún' : `Promedio ${String(c.promedio).replace('.', ',')} / 20`}
                   </Text>
                 </View>
               </View>
             );
           })}
         </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -157,10 +188,16 @@ const s = StyleSheet.create({
     borderColor: color.borde.sutil,
     backgroundColor: color.fondo.superficie,
   },
-  fila: { minHeight: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  fila: { minHeight: 50, paddingVertical: 12, gap: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  segmentos: { flexDirection: 'row', padding: 4, borderRadius: radio.full, backgroundColor: color.fondo.suave },
+  segmento: { flex: 1, minHeight: 40, borderRadius: radio.full, alignItems: 'center', justifyContent: 'center' },
+  segmentoActivo: { backgroundColor: color.fondo.superficie },
+  segmentoTexto: { fontFamily: fuente.cuerpoMedio, fontSize: 14, color: color.texto.secundario },
+  segmentoTextoActivo: { fontFamily: fuente.cuerpoFuerte, color: color.texto.acento },
   vacio: { fontFamily: fuente.cuerpo, fontSize: 13, lineHeight: 18, color: color.texto.secundario },
   filaBorde: { borderBottomWidth: 1, borderBottomColor: color.borde.sutil },
-  tema: { fontFamily: fuente.cuerpo, fontSize: 15, color: color.texto.principal },
-  valorFila: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  // El nombre ocupa el espacio libre y baja de línea si es largo; el promedio nunca se comprime.
+  tema: { flex: 1, flexShrink: 1, fontFamily: fuente.cuerpo, fontSize: 15, lineHeight: 20, color: color.texto.principal },
+  valorFila: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
   valor: { fontFamily: fuente.cuerpo, fontSize: 13, color: color.texto.secundario },
 });

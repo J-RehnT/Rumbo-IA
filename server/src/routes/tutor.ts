@@ -2,7 +2,11 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/index.js';
 import { noEncontrado } from '../lib/errores.js';
+import { usuarioPublico } from '../lib/vistas.js';
+import { promedio } from '../services/apoyo.js';
+import { instruccionesPreparacion } from '../services/preparacion.js';
 import { contextoDe, responderTutor } from '../services/tutor.js';
+import { resumenSemana } from './metas.js';
 
 export const tutor = Router();
 
@@ -66,9 +70,31 @@ tutorRapido.post('/', async (req, res) => {
           ciclo: z.number().int().min(1).max(12).optional(),
           carrera: z.string().max(120).optional(),
           curso: z.object({ nombre: z.string(), dificultad: z.enum(['facil', 'normal', 'complicado']) }).optional(),
+          preparacion: z
+            .object({
+              titulo: z.string().trim().min(1).max(80),
+              tipo: z.enum(['parcial', 'examen', 'practica', 'entrega_grupal']),
+              diasRestantes: z.number().int().min(-30).max(365),
+            })
+            .optional(),
         })
         .default({}),
     })
     .parse(req.body);
-  res.json({ texto: await responderTutor(d.mensajes, d.contexto) });
+
+  // Contexto del servidor: plan semanal del check-in y, en "Prepárame", universidad y promedio del curso.
+  const [usuario, cursos, evaluaciones, semana] = await Promise.all([
+    db.usuarios.porId(req.usuarioId),
+    db.cursos.listar(req.usuarioId),
+    db.evaluaciones.listar(req.usuarioId),
+    resumenSemana(req.usuarioId),
+  ]);
+  let preparacion: string | null = null;
+  if (d.contexto.preparacion) {
+    const curso = cursos.find((c) => c.nombre === d.contexto.curso?.nombre);
+    const prom = curso ? promedio(evaluaciones.filter((e) => e.cursoId === curso.id)) : null;
+    const universidad = usuarioPublico(usuario!).universidad?.nombre ?? null;
+    preparacion = instruccionesPreparacion(d.contexto.preparacion, d.contexto.curso?.nombre, universidad, prom);
+  }
+  res.json({ texto: await responderTutor(d.mensajes, { ...d.contexto, semana, preparacion }) });
 });

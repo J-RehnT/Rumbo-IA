@@ -5,6 +5,7 @@ import type { Curso, Notificacion } from '../db/tipos.js';
 import { limiteTutor } from '../middleware/limite.js';
 import { promedio } from '../services/apoyo.js';
 import { planificarRecordatorios } from '../services/recordatorios.js';
+import { resumenSemana } from './metas.js';
 
 export const notificaciones = Router();
 
@@ -47,18 +48,20 @@ notificaciones.post('/generar', limiteTutor, async (req, res) => {
     return res.json({ generadas: 0, origen: null, ...(await listado(req.usuarioId)) });
   }
 
-  const [usuario, cursos, evaluaciones, actividades, checkins] = await Promise.all([
+  const [usuario, cursos, evaluaciones, actividades, checkins, semana] = await Promise.all([
     db.usuarios.porId(req.usuarioId),
     db.cursos.listar(req.usuarioId),
     db.evaluaciones.listar(req.usuarioId),
     db.actividades.listar(req.usuarioId),
     db.checkins.listar(req.usuarioId),
+    resumenSemana(req.usuarioId),
   ]);
   const { items, origen } = await planificarRecordatorios({
     usuario,
     cursos: cursos.map((c) => ({ ...c, promedio: promedio(evaluaciones.filter((e) => e.cursoId === c.id)) })),
     actividades,
     checkins,
+    semana,
   });
 
   // El plan nuevo reemplaza lo que aún no se entregó; lo ya entregado queda en el historial.

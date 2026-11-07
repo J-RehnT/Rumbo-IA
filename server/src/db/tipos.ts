@@ -69,6 +69,20 @@ export type Notificacion = {
   creadoEn: string;
 };
 
+export type Proyeccion = 'tranquila' | 'normal' | 'intensa';
+export type ObjetivoSemanal = { id: string; texto: string; cursoId: string | null; metodo: string | null; cumplido: boolean };
+
+/** Plan de la semana que el estudiante registra en el check-in. */
+export type MetaSemanal = {
+  id: string;
+  usuarioId: string;
+  semana: string; // lunes de la semana (AAAA-MM-DD)
+  objetivos: ObjetivoSemanal[];
+  proyeccion: Proyeccion | null;
+  comentario: string | null;
+  actualizadoEn: string;
+};
+
 export type CheckIn = {
   id: string;
   usuarioId: string;
@@ -132,6 +146,10 @@ export interface Repositorio {
     marcarLeidas(usuarioId: string, ids?: string[]): Promise<void>; // sin ids: todas
     /** Borra las que aún no llegan (programadaPara > desde) para reemplazarlas por un plan nuevo. */
     eliminarPendientes(usuarioId: string, desde: string): Promise<void>;
+  };
+  metas: {
+    obtener(usuarioId: string, semana: string): Promise<MetaSemanal | null>;
+    guardar(datos: Omit<MetaSemanal, 'id' | 'actualizadoEn'>): Promise<MetaSemanal>; // crea o reemplaza la de esa semana
   };
   checkins: {
     listar(usuarioId: string, desde?: string): Promise<CheckIn[]>; // orden cronológico

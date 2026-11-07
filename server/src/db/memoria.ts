@@ -1,5 +1,5 @@
 import { ahora, nuevoId } from '../lib/ids.js';
-import type { Actividad, CheckIn, Conversacion, Curso, Evaluacion, Mensaje, Notificacion, Repositorio, Usuario } from './tipos.js';
+import type { Actividad, CheckIn, Conversacion, Curso, Evaluacion, Mensaje, MetaSemanal, Notificacion, Repositorio, Usuario } from './tipos.js';
 
 /** Repositorio en memoria: sirve para la demo y las pruebas. Se pierde al reiniciar. */
 export function crearRepositorioMemoria(): Repositorio {
@@ -8,6 +8,7 @@ export function crearRepositorioMemoria(): Repositorio {
   const evaluaciones: Evaluacion[] = [];
   const actividades = new Map<string, Actividad>();
   let notificaciones: Notificacion[] = [];
+  const metas = new Map<string, MetaSemanal>(); // clave: usuarioId|semana
   const checkins: CheckIn[] = [];
   const conversaciones = new Map<string, Conversacion>();
   const mensajes: Mensaje[] = [];
@@ -115,6 +116,17 @@ export function crearRepositorioMemoria(): Repositorio {
       },
       async eliminarPendientes(usuarioId, desde) {
         notificaciones = notificaciones.filter((n) => !(n.usuarioId === usuarioId && n.programadaPara > desde));
+      },
+    },
+    metas: {
+      async obtener(usuarioId, semana) {
+        return metas.get(`${usuarioId}|${semana}`) ?? null;
+      },
+      async guardar(d) {
+        const clave = `${d.usuarioId}|${d.semana}`;
+        const m: MetaSemanal = { ...d, id: metas.get(clave)?.id ?? nuevoId(), actualizadoEn: ahora() };
+        metas.set(clave, m);
+        return m;
       },
     },
     checkins: {

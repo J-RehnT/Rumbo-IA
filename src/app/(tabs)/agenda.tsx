@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import { Check, Plus, RefreshCw, Trash2, X } from 'lucide-react-native';
+import { Check, Plus, RefreshCw, Sparkles, Trash2, X } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { Chip } from '../../components/Chip';
 import { TIPOS_ACTIVIDAD, tipoDe, type TipoActividad } from '../../data/actividades';
 import { api, mensajeDeError } from '../../lib/api';
 import { cuando, fechaLarga, hoyLima, parsearFecha, sumarDias } from '../../lib/fechas';
+import { abrirPreparame, sePuedePreparar } from '../../lib/preparame';
 import { useEstudiante } from '../../state/estudiante';
 import { color, fuente, radio } from '../../theme';
 
@@ -187,6 +188,17 @@ function Fila({ a, onCompletar, onBorrar }: { a: Actividad; onCompletar: () => v
           {fechaLarga(a.fecha)} · {cuando(a.diasRestantes)}
           {a.origen === 'universidad' ? ' · Universidad' : ''}
         </Text>
+        {!a.completada && a.diasRestantes >= 0 && sePuedePreparar(a.tipo) && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Prepárame para ${a.titulo}`}
+            onPress={() => abrirPreparame(a)}
+            style={s.preparame}
+          >
+            <Sparkles size={14} color={color.texto.invertido} />
+            <Text style={s.preparameTexto}>Prepárame</Text>
+          </Pressable>
+        )}
       </View>
       <Pressable
         accessibilityRole="button"
@@ -326,6 +338,18 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   checkActivo: { backgroundColor: color.accion.primaria, borderColor: color.accion.primaria },
+  preparame: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radio.full,
+    backgroundColor: color.accion.primaria,
+  },
+  preparameTexto: { fontFamily: fuente.cuerpoFuerte, fontSize: 12, color: color.texto.invertido },
   borrar: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   formulario: {
     gap: 12,

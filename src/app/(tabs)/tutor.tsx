@@ -1,38 +1,52 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, Lightbulb, Send } from 'lucide-react-native';
+import { ChevronLeft, Lightbulb, Send, X } from 'lucide-react-native';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { mensajeDeError } from '../../lib/api';
-import { preguntarTutor, type Mensaje } from '../../lib/tutor';
+import { cuando } from '../../lib/fechas';
+import { preguntarTutor, type Mensaje, type Preparacion } from '../../lib/tutor';
 import { useEstudiante } from '../../state/estudiante';
 import { color, fuente, radio } from '../../theme';
 
 const RAPIDAS = ['Más simple', 'Otro ejemplo', 'Siguiente paso'];
+const RAPIDAS_PREPARAME = ['Otro ejercicio', 'Ver solución', 'Más difícil', 'Más fácil'];
+
+type SesionPreparame = { preparacion: Preparacion; curso: string };
 
 export default function Tutor() {
   const { perfil, cursos } = useEstudiante();
-  const { pregunta } = useLocalSearchParams<{ pregunta?: string }>();
+  const params = useLocalSearchParams<{ pregunta?: string; preparar?: string; tipo?: string; dias?: string; curso?: string; t?: string }>();
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [texto, setTexto] = useState('');
   const [pensando, setPensando] = useState(false);
+  const [sesion, setSesion] = useState<SesionPreparame | null>(null);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
 
-  const saludo = `¡Hola, ${perfil.nombre.split(' ')[0]}! Soy tu tutor de Rumbo. ¿Con qué tema${
-    cursos[0] ? ` de ${cursos[0].nombre}` : ''
-  } quieres empezar?`;
+  const saludo = sesion
+    ? `Modo Prepárame: vamos a entrenar para «${sesion.preparacion.titulo}» de ${sesion.curso} con ejercicios tipo examen. Intenta cada uno antes de pedir la solución.`
+    : `¡Hola, ${perfil.nombre.split(' ')[0]}! Soy tu tutor de Rumbo. ¿Con qué tema${cursos[0] ? ` de ${cursos[0].nombre}` : ''} quieres empezar?`;
 
-  const enviar = async (t: string) => {
+  const enviar = async (t: string, opciones: { reiniciar?: boolean; sesion?: SesionPreparame | null } = {}) => {
     const limpio = t.trim();
     if (!limpio || pensando) return;
-    const nuevos: Mensaje[] = [...mensajes, { id: String(Date.now()), autor: 'estudiante', texto: limpio }];
+    const actual = opciones.sesion !== undefined ? opciones.sesion : sesion;
+    const base = opciones.reiniciar ? [] : mensajes;
+    const nuevos: Mensaje[] = [...base, { id: String(Date.now()), autor: 'estudiante', texto: limpio }];
     setMensajes(nuevos);
     setTexto('');
     setPensando(true);
     try {
-      // Si la conversación menciona uno de sus cursos, el tutor responde con ese contexto.
-      const mencionado = cursos.find((c) => nuevos.some((m) => m.texto.toLowerCase().includes(c.nombre.toLowerCase())));
-      const r = await preguntarTutor(nuevos.slice(-40), { ciclo: perfil.ciclo, carrera: perfil.carrera, curso: mencionado ?? cursos[0] });
+      // En Prepárame manda el curso de la evaluación; si no, el curso que se mencione en la conversación.
+      const curso = actual
+        ? cursos.find((c) => c.nombre === actual.curso)
+        : cursos.find((c) => nuevos.some((m) => m.texto.toLowerCase().includes(c.nombre.toLowerCase())));
+      const r = await preguntarTutor(nuevos.slice(-40), {
+        ciclo: perfil.ciclo,
+        carrera: perfil.carrera,
+        curso: curso ?? cursos[0],
+        preparacion: actual?.preparacion,
+      });
       setMensajes((m) => [...m, { id: `${Date.now()}t`, autor: 'tutor', texto: r }]);
     } catch (e) {
       setMensajes((m) => [...m, { id: `${Date.now()}e`, autor: 'tutor', texto: mensajeDeError(e) }]);
@@ -41,11 +55,35 @@ export default function Tutor() {
     }
   };
 
-  // Llega una pregunta desde Inicio.
+  // Llega una pregunta desde Inicio o Notificaciones.
   useEffect(() => {
-    if (pregunta) enviar(pregunta);
+    if (params.pregunta) enviar(params.pregunta);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pregunta]);
+  }, [params.pregunta]);
+
+  // Llega "Prepárame" desde la Agenda o Inicio: empieza una sesión nueva de entrenamiento.
+  useEffect(() => {
+    if (!params.preparar || !params.curso) return;
+    const nueva: SesionPreparame = {
+      curso: params.curso,
+      preparacion: {
+        titulo: params.preparar,
+        tipo: (params.tipo as Preparacion['tipo']) ?? 'parcial',
+        diasRestantes: Number(params.dias ?? 0),
+      },
+    };
+    setSesion(nueva);
+    enviar(`Prepárame para «${nueva.preparacion.titulo}» de ${nueva.curso}. Faltan ${nueva.preparacion.diasRestantes} día(s).`, {
+      reiniciar: true,
+      sesion: nueva,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.t]);
+
+  const salirDePreparame = () => {
+    setSesion(null);
+    setMensajes([]);
+  };
 
   return (
     <SafeAreaView style={s.pantalla} edges={['top']}>
@@ -55,14 +93,24 @@ export default function Tutor() {
             <ChevronLeft size={22} color={color.texto.principal} />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={s.tema}>Tu tutor</Text>
-            <Text style={s.nivel}>
-              {perfil.ciclo}.º ciclo · {perfil.carrera || 'tu carrera'}
+            <Text style={s.tema} numberOfLines={1}>
+              {sesion ? `Prepárame · ${sesion.preparacion.titulo}` : 'Tu tutor'}
+            </Text>
+            <Text style={s.nivel} numberOfLines={1}>
+              {sesion
+                ? `${sesion.curso} · ${cuando(sesion.preparacion.diasRestantes)}`
+                : `${perfil.ciclo}.º ciclo · ${perfil.carrera || 'tu carrera'}`}
             </Text>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Pista" onPress={() => enviar('Dame una pista')} style={s.pista}>
-            <Lightbulb size={20} color={color.texto.acento} />
-          </Pressable>
+          {sesion ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Salir de Prepárame" onPress={salirDePreparame} style={s.pista}>
+              <X size={20} color={color.texto.acento} />
+            </Pressable>
+          ) : (
+            <Pressable accessibilityRole="button" accessibilityLabel="Pista" onPress={() => enviar('Dame una pista')} style={s.pista}>
+              <Lightbulb size={20} color={color.texto.acento} />
+            </Pressable>
+          )}
         </View>
       </View>
 
@@ -77,7 +125,7 @@ export default function Tutor() {
 
         <View style={s.pie}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-            {RAPIDAS.map((r) => (
+            {(sesion ? RAPIDAS_PREPARAME : RAPIDAS).map((r) => (
               <Pressable key={r} accessibilityRole="button" onPress={() => enviar(r)} style={s.rapida}>
                 <Text style={s.rapidaTexto}>{r}</Text>
               </Pressable>

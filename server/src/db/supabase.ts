@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { config } from '../config.js';
 import { ErrorApi } from '../lib/errores.js';
-import type { Actividad, CheckIn, Conversacion, Curso, Evaluacion, Mensaje, Notificacion, Repositorio, Usuario } from './tipos.js';
+import type { Actividad, CheckIn, Conversacion, Curso, Evaluacion, Mensaje, MetaSemanal, Notificacion, Repositorio, Usuario } from './tipos.js';
 
 /**
  * Repositorio sobre Supabase (Postgres). Listo pero AÚN NO CONECTADO: ver src/db/index.ts.
@@ -93,6 +93,18 @@ export function crearRepositorioSupabase(sb: SupabaseClient = crearClienteSupaba
       eliminarPendientes: async (u, desde) => {
         revisar(await sb.from('notificaciones').delete().eq('usuario_id', u).gt('programada_para', desde).select('id'));
       },
+    },
+    metas: {
+      obtener: (u, semana) =>
+        uno<MetaSemanal>(sb.from('metas_semanales').select().eq('usuario_id', u).eq('semana', semana).maybeSingle()),
+      guardar: async (d) =>
+        (await uno<MetaSemanal>(
+          sb
+            .from('metas_semanales')
+            .upsert({ ...aSnake(d), actualizado_en: new Date().toISOString() }, { onConflict: 'usuario_id,semana' })
+            .select()
+            .single(),
+        ))!,
     },
     evaluaciones: {
       listar: (u, cursoId) => {

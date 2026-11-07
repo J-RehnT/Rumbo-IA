@@ -6,5 +6,12 @@ export const hoyLima = () => new Date(Date.now() - 5 * 60 * 60 * 1000).toISOStri
 /** Suma días a una fecha AAAA-MM-DD. */
 export const sumarDias = (iso: string, dias: number) => new Date(Date.parse(iso) + dias * DIA_MS).toISOString().slice(0, 10);
 
+/** Lunes de la semana actual (AAAA-MM-DD, hora de Perú). */
+export const lunesLima = () => {
+  const hoy = hoyLima();
+  const dia = new Date(`${hoy}T00:00:00Z`).getUTCDay(); // 0 = domingo
+  return sumarDias(hoy, -((dia + 6) % 7));
+};
+
 /** Días entre hoy y la fecha (negativo si ya pasó). */
 export const diasHasta = (iso: string) => Math.round((Date.parse(iso) - Date.parse(hoyLima())) / DIA_MS);
