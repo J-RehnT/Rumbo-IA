@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { TipoActividad } from '../data/actividades';
 import type { Universidad } from '../data/universidades';
 import { alSesionExpirada, api, fijarToken } from '../lib/api';
+import { activarNotificaciones, programarEnCelular } from '../lib/notificaciones';
 import { borrarToken, guardarToken, leerToken } from '../lib/sesion';
 
 export type Dificultad = 'facil' | 'normal' | 'complicado';
@@ -22,6 +23,20 @@ export type Apoyo = { mostrar: boolean; nivel: 'ninguno' | 'suave' | 'recomendad
 export type Recomendacion = { cursoId: string; curso: string; minutos: number; texto: string };
 /** Próxima fecha importante (parcial, práctica, entrega…) para mostrar en Inicio. */
 export type Evento = { id: string; cursoId: string; curso: string; tipo: TipoActividad; titulo: string; fecha: string; diasRestantes: number };
+/** Mensaje del tutor: recordatorio de estudio, método o bienestar. */
+export type AvisoTutor = {
+  id: string;
+  cursoId: string | null;
+  curso: string | null;
+  categoria: 'recordatorio' | 'metodo' | 'bienestar';
+  titulo: string;
+  texto: string;
+  programadaPara: string;
+  leida: boolean;
+  origen: 'ia' | 'reglas';
+  entregada: boolean;
+};
+type AvisosApi = { noLeidas: number; notificaciones: AvisoTutor[]; generadas?: number };
 
 type Perfil = {
   nombre: string;
@@ -40,6 +55,11 @@ type Estado = {
   apoyo: Apoyo | null;
   recomendacion: Recomendacion | null;
   proximas: Evento[];
+  avisos: AvisoTutor[];
+  avisosNoLeidos: number;
+  /** Pide al tutor el plan de avisos (forzar = ignorar la espera de 6 h) y lo programa en el celular. */
+  actualizarAvisos: (forzar?: boolean) => Promise<{ generadas: number; programadas: number }>;
+  marcarAvisosLeidos: (ids?: string[]) => Promise<void>;
   checkinPendiente: boolean;
   sugerirApoyo: boolean;
   setPerfil: (cambios: Partial<Perfil>) => void;
@@ -112,7 +132,24 @@ export function EstudianteProvider({ children }: { children: ReactNode }) {
   const [apoyo, setApoyo] = useState<Apoyo | null>(null);
   const [recomendacion, setRecomendacion] = useState<Recomendacion | null>(null);
   const [proximas, setProximas] = useState<Evento[]>([]);
+  const [avisos, setAvisos] = useState<AvisoTutor[]>([]);
+  const [avisosNoLeidos, setAvisosNoLeidos] = useState(0);
   const [checkinPendiente, setCheckinPendiente] = useState(false);
+
+  const aplicarAvisos = useCallback((r: AvisosApi) => {
+    setAvisos(r.notificaciones);
+    setAvisosNoLeidos(r.noLeidas);
+  }, []);
+
+  const actualizarAvisos = useCallback(
+    async (forzar = false) => {
+      const r = await api<AvisosApi>('POST', '/notificaciones/generar', { forzar });
+      aplicarAvisos(r);
+      const programadas = await programarEnCelular(r.notificaciones.filter((n) => !n.entregada));
+      return { generadas: r.generadas ?? 0, programadas };
+    },
+    [aplicarAvisos],
+  );
 
   const limpiar = useCallback(() => {
     fijarToken(null);
@@ -122,7 +159,10 @@ export function EstudianteProvider({ children }: { children: ReactNode }) {
     setApoyo(null);
     setRecomendacion(null);
     setProximas([]);
+    setAvisos([]);
+    setAvisosNoLeidos(0);
     setCheckinPendiente(false);
+    programarEnCelular([]); // al cerrar sesión no deben sonar avisos de esta cuenta
   }, []);
 
   const refrescar = useCallback(async () => {
@@ -141,8 +181,10 @@ export function EstudianteProvider({ children }: { children: ReactNode }) {
       setPerfilState((p) => aPerfil(usuario, p));
       setAutenticado(true);
       await refrescar().catch(() => {});
+      // Pide permiso para avisos y arma el plan del tutor sin hacer esperar al estudiante.
+      activarNotificaciones().then(() => actualizarAvisos().catch(() => {}));
     },
-    [refrescar],
+    [refrescar, actualizarAvisos],
   );
 
   // Al abrir la app: recupera la sesión guardada.
@@ -160,6 +202,7 @@ export function EstudianteProvider({ children }: { children: ReactNode }) {
           setPerfilState((p) => aPerfil(usuario, p));
           setAutenticado(true);
           await refrescar().catch(() => {});
+          actualizarAvisos().catch(() => {});
         }
       } catch {
         fijarToken(null); // sin conexión o sesión vencida: pide ingresar de nuevo
@@ -167,7 +210,7 @@ export function EstudianteProvider({ children }: { children: ReactNode }) {
         setCargando(false);
       }
     })();
-  }, [limpiar, refrescar]);
+  }, [limpiar, refrescar, actualizarAvisos]);
 
   const value = useMemo<Estado>(
     () => ({
@@ -178,6 +221,12 @@ export function EstudianteProvider({ children }: { children: ReactNode }) {
       apoyo,
       recomendacion,
       proximas,
+      avisos,
+      avisosNoLeidos,
+      actualizarAvisos,
+      marcarAvisosLeidos: async (ids) => {
+        aplicarAvisos(await api<AvisosApi>('POST', '/notificaciones/leer', ids ? { ids } : {}));
+      },
       checkinPendiente,
       sugerirApoyo: apoyo?.mostrar ?? false,
       refrescar,
@@ -245,7 +294,23 @@ export function EstudianteProvider({ children }: { children: ReactNode }) {
         return r.apoyo;
       },
     }),
-    [cargando, autenticado, perfil, cursos, apoyo, recomendacion, proximas, checkinPendiente, entrar, limpiar, refrescar],
+    [
+      cargando,
+      autenticado,
+      perfil,
+      cursos,
+      apoyo,
+      recomendacion,
+      proximas,
+      avisos,
+      avisosNoLeidos,
+      checkinPendiente,
+      entrar,
+      limpiar,
+      refrescar,
+      actualizarAvisos,
+      aplicarAvisos,
+    ],
   );
 
   return <EstudianteContext.Provider value={value}>{children}</EstudianteContext.Provider>;

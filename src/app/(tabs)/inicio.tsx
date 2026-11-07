@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { ArrowRight, ChevronRight, Compass, LogOut, Smile } from 'lucide-react-native';
+import { ArrowRight, Bell, ChevronRight, Compass, LogOut, Smile, Sparkles } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,15 +17,21 @@ function nota(c: Curso) {
 }
 
 export default function Inicio() {
-  const { perfil, cursos, recomendacion, proximas, checkinPendiente, refrescar, cerrarSesion } = useEstudiante();
+  const { perfil, cursos, recomendacion, proximas, avisos, avisosNoLeidos, actualizarAvisos, checkinPendiente, refrescar, cerrarSesion } =
+    useEstudiante();
   const [duda, setDuda] = useState('');
 
-  // Cada vez que vuelves a Inicio se actualizan cursos, recomendación y check-in.
+  // Cada vez que vuelves a Inicio se actualizan cursos, recomendación, check-in y avisos del tutor.
   useFocusEffect(
     useCallback(() => {
       refrescar().catch(() => {});
-    }, [refrescar]),
+      actualizarAvisos().catch(() => {});
+    }, [refrescar, actualizarAvisos]),
   );
+
+  // Lo último que escribió el tutor; si aún no llega nada, el próximo aviso programado.
+  const recibidos = avisos.filter((a) => a.entregada).slice(-2).reverse();
+  const siguiente = avisos.find((a) => !a.entregada);
   const abrirTutor = (texto?: string) =>
     router.navigate({ pathname: '/tutor', params: texto ? { pregunta: texto } : {} });
 
@@ -39,6 +45,20 @@ export default function Inicio() {
             </Text>
             <Text style={s.hola}>Hola, {perfil.nombre.split(' ')[0]}</Text>
           </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Notificaciones${avisosNoLeidos ? `, ${avisosNoLeidos} sin leer` : ''}`}
+            onPress={() => router.push('/notificaciones')}
+            hitSlop={6}
+            style={s.campana}
+          >
+            <Bell size={20} color={color.texto.principal} />
+            {avisosNoLeidos > 0 && (
+              <View style={s.insignia}>
+                <Text style={s.insigniaTexto}>{avisosNoLeidos > 9 ? '9+' : avisosNoLeidos}</Text>
+              </View>
+            )}
+          </Pressable>
           <View style={s.avatar}>
             <Text style={s.avatarTexto}>{perfil.nombre.charAt(0).toUpperCase()}</Text>
           </View>
@@ -87,6 +107,29 @@ export default function Inicio() {
           </View>
           <ChevronRight size={20} color={color.texto.principal} />
         </Pressable>
+
+        {(recibidos.length > 0 || siguiente) && (
+          <Pressable accessibilityRole="button" onPress={() => router.push('/notificaciones')} style={s.avisos}>
+            <View style={s.avisosCabecera}>
+              <Sparkles size={16} color={color.texto.acento} />
+              <Text style={s.avisosRotulo}>{recibidos.length ? 'Tu tutor te escribió' : 'Tu tutor te escribirá'}</Text>
+              <ChevronRight size={18} color={color.texto.secundario} style={{ marginLeft: 'auto' }} />
+            </View>
+            {(recibidos.length ? recibidos : [siguiente!]).map((a) => (
+              <View key={a.id} style={s.avisoFila}>
+                {!a.leida && a.entregada && <View style={s.punto} />}
+                <View style={{ flex: 1 }}>
+                  <Text style={s.avisoTitulo} numberOfLines={1}>
+                    {a.titulo}
+                  </Text>
+                  <Text style={s.avisoTexto} numberOfLines={2}>
+                    {a.texto}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </Pressable>
+        )}
 
         {proximas.length > 0 && (
           <>
@@ -158,6 +201,34 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarTexto: { fontFamily: fuente.titulo, fontSize: 17, color: color.accion.suaveTexto },
+  campana: { width: 40, height: 44, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
+  insignia: {
+    position: 'absolute',
+    top: 6,
+    right: 2,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: radio.full,
+    backgroundColor: color.apoyo.accion,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  insigniaTexto: { fontFamily: fuente.cuerpoFuerte, fontSize: 11, color: color.texto.invertido },
+  avisos: {
+    gap: 10,
+    padding: 14,
+    borderRadius: radio.xl,
+    borderWidth: 1,
+    borderColor: color.borde.acento,
+    backgroundColor: color.fondo.suave,
+  },
+  avisosCabecera: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  avisosRotulo: { fontFamily: fuente.cuerpoFuerte, fontSize: 13, color: color.texto.acento },
+  avisoFila: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  punto: { width: 8, height: 8, marginTop: 6, borderRadius: radio.full, backgroundColor: color.apoyo.accion },
+  avisoTitulo: { fontFamily: fuente.tituloBold, fontSize: 14, color: color.texto.principal },
+  avisoTexto: { fontFamily: fuente.cuerpo, fontSize: 13, lineHeight: 18, color: color.texto.secundario },
   evento: {
     flexDirection: 'row',
     alignItems: 'center',

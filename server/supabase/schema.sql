@@ -51,6 +51,22 @@ create table if not exists actividades (
 create index if not exists actividades_usuario_fecha_idx on actividades(usuario_id, fecha);
 create index if not exists actividades_curso_idx on actividades(curso_id);
 
+-- Notificaciones que el tutor (IA) programa: recordatorios de estudio, métodos y bienestar.
+create table if not exists notificaciones (
+  id              uuid primary key default gen_random_uuid(),
+  usuario_id      uuid not null references usuarios(id) on delete cascade,
+  curso_id        uuid references cursos(id) on delete cascade,
+  actividad_id    uuid references actividades(id) on delete cascade,
+  categoria       text not null check (categoria in ('recordatorio','metodo','bienestar')),
+  titulo          text not null,
+  texto           text not null,
+  programada_para timestamptz not null,
+  leida           boolean not null default false,
+  origen          text not null default 'reglas' check (origen in ('ia','reglas')),
+  creado_en       timestamptz not null default now()
+);
+create index if not exists notificaciones_usuario_idx on notificaciones(usuario_id, programada_para);
+
 create table if not exists checkins (
   id          uuid primary key default gen_random_uuid(),
   usuario_id  uuid not null references usuarios(id) on delete cascade,
@@ -85,6 +101,7 @@ alter table usuarios       enable row level security;
 alter table cursos         enable row level security;
 alter table evaluaciones   enable row level security;
 alter table actividades    enable row level security;
+alter table notificaciones enable row level security;
 alter table checkins       enable row level security;
 alter table conversaciones enable row level security;
 alter table mensajes       enable row level security;

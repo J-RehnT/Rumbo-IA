@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { ArrowRight, Menu, Sparkles } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -6,12 +6,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArcoHero } from '../components/ArcoHero';
 import { Boton } from '../components/Boton';
 import { LogoHorizontal } from '../components/Logo';
+import { useEstudiante } from '../state/estudiante';
 import { color, fuente, radio } from '../theme';
 
 /** Pantalla inicial: "01 · Inicio (hero)" del diseño verde. */
 export default function Hero() {
+  const { autenticado } = useEstudiante();
   const { width } = useWindowDimensions();
   const [altoArco, setAltoArco] = useState(0);
+
+  // Con sesión iniciada, la bienvenida no se muestra: va directo a la app.
+  if (autenticado) return <Redirect href="/inicio" />;
 
   return (
     <SafeAreaView style={s.pantalla} edges={['top']}>

@@ -52,6 +52,23 @@ export type Actividad = {
   creadoEn: string;
 };
 
+export type CategoriaNotificacion = 'recordatorio' | 'metodo' | 'bienestar';
+
+/** Mensaje que el tutor (IA o reglas) programa para el estudiante. */
+export type Notificacion = {
+  id: string;
+  usuarioId: string;
+  cursoId: string | null;
+  actividadId: string | null;
+  categoria: CategoriaNotificacion;
+  titulo: string;
+  texto: string;
+  programadaPara: string; // ISO con hora: cuándo debe sonar/mostrarse
+  leida: boolean;
+  origen: 'ia' | 'reglas';
+  creadoEn: string;
+};
+
 export type CheckIn = {
   id: string;
   usuarioId: string;
@@ -108,6 +125,13 @@ export interface Repositorio {
     crear(datos: Nuevo<Actividad>): Promise<Actividad>;
     actualizar(usuarioId: string, id: string, cambios: Partial<Nuevo<Actividad>>): Promise<Actividad | null>;
     eliminar(usuarioId: string, id: string): Promise<boolean>;
+  };
+  notificaciones: {
+    listar(usuarioId: string): Promise<Notificacion[]>; // por programadaPara
+    crear(datos: Nuevo<Notificacion>): Promise<Notificacion>;
+    marcarLeidas(usuarioId: string, ids?: string[]): Promise<void>; // sin ids: todas
+    /** Borra las que aún no llegan (programadaPara > desde) para reemplazarlas por un plan nuevo. */
+    eliminarPendientes(usuarioId: string, desde: string): Promise<void>;
   };
   checkins: {
     listar(usuarioId: string, desde?: string): Promise<CheckIn[]>; // orden cronológico

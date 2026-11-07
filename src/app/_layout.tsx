@@ -1,7 +1,9 @@
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, useFonts as useInter } from '@expo-google-fonts/inter';
 import { Nunito_700Bold, Nunito_800ExtraBold, useFonts as useNunito } from '@expo-google-fonts/nunito';
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import { alTocarNotificacion } from '../lib/notificaciones';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { EstudianteProvider, useEstudiante } from '../state/estudiante';
 import { color } from '../theme';
@@ -24,6 +26,10 @@ export default function RootLayout() {
 /** Con sesión: la app. Sin sesión: bienvenida e ingreso. El registro es accesible en ambos casos. */
 function Navegacion() {
   const { cargando, autenticado } = useEstudiante();
+
+  // Tocar una notificación del celular abre la bandeja de notificaciones.
+  useEffect(() => alTocarNotificacion(() => router.push('/notificaciones')), []);
+
   if (cargando) return null; // espera a recuperar la sesión guardada
 
   return (
@@ -31,11 +37,13 @@ function Navegacion() {
       <Stack.Protected guard={autenticado}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="checkin" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="notificaciones" />
       </Stack.Protected>
       <Stack.Protected guard={!autenticado}>
-        <Stack.Screen name="index" />
         <Stack.Screen name="login" />
       </Stack.Protected>
+      {/* "/" siempre existe: sin sesión muestra la bienvenida; con sesión redirige a Inicio. */}
+      <Stack.Screen name="index" />
       <Stack.Screen name="registro" />
     </Stack>
   );

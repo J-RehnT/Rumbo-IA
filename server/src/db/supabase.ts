@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { config } from '../config.js';
 import { ErrorApi } from '../lib/errores.js';
-import type { Actividad, CheckIn, Conversacion, Curso, Evaluacion, Mensaje, Repositorio, Usuario } from './tipos.js';
+import type { Actividad, CheckIn, Conversacion, Curso, Evaluacion, Mensaje, Notificacion, Repositorio, Usuario } from './tipos.js';
 
 /**
  * Repositorio sobre Supabase (Postgres). Listo pero AÚN NO CONECTADO: ver src/db/index.ts.
@@ -80,6 +80,18 @@ export function crearRepositorioSupabase(sb: SupabaseClient = crearClienteSupaba
       eliminar: async (u, id) => {
         const filas = revisar(await sb.from('actividades').delete().eq('usuario_id', u).eq('id', id).select('id'));
         return (filas ?? []).length > 0;
+      },
+    },
+    notificaciones: {
+      listar: (u) => varios<Notificacion>(sb.from('notificaciones').select().eq('usuario_id', u).order('programada_para')),
+      crear: async (d) => (await uno<Notificacion>(sb.from('notificaciones').insert(aSnake(d)).select().single()))!,
+      marcarLeidas: async (u, ids) => {
+        let q = sb.from('notificaciones').update({ leida: true }).eq('usuario_id', u);
+        if (ids) q = q.in('id', ids);
+        revisar(await q.select('id'));
+      },
+      eliminarPendientes: async (u, desde) => {
+        revisar(await sb.from('notificaciones').delete().eq('usuario_id', u).gt('programada_para', desde).select('id'));
       },
     },
     evaluaciones: {

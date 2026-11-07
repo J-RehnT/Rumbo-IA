@@ -1,5 +1,5 @@
 import { ahora, nuevoId } from '../lib/ids.js';
-import type { Actividad, CheckIn, Conversacion, Curso, Evaluacion, Mensaje, Repositorio, Usuario } from './tipos.js';
+import type { Actividad, CheckIn, Conversacion, Curso, Evaluacion, Mensaje, Notificacion, Repositorio, Usuario } from './tipos.js';
 
 /** Repositorio en memoria: sirve para la demo y las pruebas. Se pierde al reiniciar. */
 export function crearRepositorioMemoria(): Repositorio {
@@ -7,6 +7,7 @@ export function crearRepositorioMemoria(): Repositorio {
   const cursos = new Map<string, Curso>();
   const evaluaciones: Evaluacion[] = [];
   const actividades = new Map<string, Actividad>();
+  let notificaciones: Notificacion[] = [];
   const checkins: CheckIn[] = [];
   const conversaciones = new Map<string, Conversacion>();
   const mensajes: Mensaje[] = [];
@@ -96,6 +97,24 @@ export function crearRepositorioMemoria(): Repositorio {
         const e: Evaluacion = { ...d, id: nuevoId() };
         evaluaciones.push(e);
         return e;
+      },
+    },
+    notificaciones: {
+      async listar(usuarioId) {
+        return notificaciones
+          .filter((n) => n.usuarioId === usuarioId)
+          .sort((a, b) => a.programadaPara.localeCompare(b.programadaPara));
+      },
+      async crear(d) {
+        const n: Notificacion = { ...d, id: nuevoId(), creadoEn: ahora() };
+        notificaciones.push(n);
+        return n;
+      },
+      async marcarLeidas(usuarioId, ids) {
+        for (const n of notificaciones) if (n.usuarioId === usuarioId && (!ids || ids.includes(n.id))) n.leida = true;
+      },
+      async eliminarPendientes(usuarioId, desde) {
+        notificaciones = notificaciones.filter((n) => !(n.usuarioId === usuarioId && n.programadaPara > desde));
       },
     },
     checkins: {

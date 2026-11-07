@@ -82,6 +82,14 @@ const agenda = await llamar('GET', '/actividades');
 console.log(`   agenda: ${agenda.length} actividades · primera: ${agenda[0].titulo} de ${agenda[0].curso} en ${agenda[0].diasRestantes} día(s)`);
 const ini2 = await llamar('GET', '/inicio');
 console.log(`   inicio: ${ini2.proximas.length} próximas · ${ini2.recomendacion.texto}`);
+// ---- Notificaciones del tutor ----
+const plan = await llamar('POST', '/notificaciones/generar', { forzar: true });
+if (!(plan.generadas > 0)) throw new Error('El plan de notificaciones debería tener avisos');
+console.log(`   notificaciones: ${plan.generadas} programadas (${plan.origen}) · primera: ${plan.notificaciones[0]?.titulo}`);
+const otra = await llamar('POST', '/notificaciones/generar', {});
+if (otra.generadas !== 0) throw new Error('Sin forzar no debe regenerar antes de 6 horas');
+const leidas = await llamar('POST', '/notificaciones/leer', {});
+if (leidas.noLeidas !== 0) throw new Error('Debería quedar todo leído');
 await llamar('DELETE', `/actividades/${manual.id}`, undefined, 204);
 await llamar('DELETE', `/actividades/${manual.id}`, undefined, 404);
 

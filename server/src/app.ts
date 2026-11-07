@@ -10,6 +10,7 @@ import { auth } from './routes/auth.js';
 import { bienestar } from './routes/bienestar.js';
 import { cursos } from './routes/cursos.js';
 import { me } from './routes/me.js';
+import { notificaciones } from './routes/notificaciones.js';
 import { tutor, tutorRapido } from './routes/tutor.js';
 import { RECURSOS_APOYO, UNIVERSIDADES } from './services/catalogo.js';
 
@@ -32,6 +33,7 @@ export function crearApp() {
   api.use('/me', me);
   api.use('/cursos', cursos);
   api.use('/actividades', actividades);
+  api.use('/notificaciones', notificaciones);
   api.use('/tutor', tutor);
   api.use(bienestar); // /checkins, /progreso, /inicio
 
