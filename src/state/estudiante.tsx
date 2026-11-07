@@ -14,6 +14,7 @@ export type Curso = {
   sesionesSemana: number; // sesiones con el tutor en los últimos 7 días
   ultimoTema?: string;
   ultimaVez?: string; // fecha ISO de la última sesión
+  notas: number[]; // notas registradas (escala vigesimal 0–20), como `evaluaciones` en el API
 };
 export type Animo = 0 | 1 | 2 | 3 | 4; // Agotado … Genial
 export type Carga = 'ligera' | 'normal' | 'pesada';
@@ -54,6 +55,7 @@ const CURSOS_DEMO: Curso[] = [
     sesionesSemana: 3,
     ultimoTema: 'Integrales por partes',
     ultimaVez: enDias(-1),
+    notas: [11, 12],
   },
   {
     id: 'c2',
@@ -65,8 +67,9 @@ const CURSOS_DEMO: Curso[] = [
     sesionesSemana: 1,
     ultimoTema: 'Ley de Gauss',
     ultimaVez: enDias(-4),
+    notas: [14],
   },
-  { id: 'c3', nombre: 'Estructuras de datos', horasClase: 4, dificultad: 'normal', minutosSemana: 0, sesionesSemana: 0 },
+  { id: 'c3', nombre: 'Estructuras de datos', horasClase: 4, dificultad: 'normal', minutosSemana: 0, sesionesSemana: 0, notas: [] },
 ];
 
 export function EstudianteProvider({ children }: { children: ReactNode }) {
@@ -94,7 +97,7 @@ export function EstudianteProvider({ children }: { children: ReactNode }) {
       agregarCurso: (nombre) =>
         setCursos((cs) => [
           ...cs,
-          { id: String(Date.now()), nombre, horasClase: 4, dificultad: 'normal', minutosSemana: 0, sesionesSemana: 0 },
+          { id: String(Date.now()), nombre, horasClase: 4, dificultad: 'normal', minutosSemana: 0, sesionesSemana: 0, notas: [] },
         ]),
       actualizarCurso: (id, c) => setCursos((cs) => cs.map((x) => (x.id === id ? { ...x, ...c } : x))),
       quitarCurso: (id) => setCursos((cs) => cs.filter((x) => x.id !== id)),

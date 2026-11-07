@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { ArrowRight, Calendar, ChevronRight, Clock, Compass, Smile } from 'lucide-react-native';
+import { ArrowRight, Calendar, ChevronRight, Clock, Compass, GraduationCap, Smile } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,6 +22,7 @@ function TarjetaCurso({ c, onPress }: { c: Curso; onPress: () => void }) {
   const dif = DIFICULTAD[c.dificultad];
   const dias = c.parcial ? diasHasta(c.parcial) : null;
   const cerca = dias !== null && dias >= 0 && dias <= 7;
+  const promedio = c.notas.length ? c.notas.reduce((a, b) => a + b, 0) / c.notas.length : null;
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={s.curso}>
       <View style={s.cursoFila}>
@@ -41,6 +42,14 @@ function TarjetaCurso({ c, onPress }: { c: Curso; onPress: () => void }) {
           <Clock size={16} color={color.texto.secundario} />
           <Text style={s.datoTexto}>{duracion(c.minutosSemana)} esta semana</Text>
         </View>
+        {promedio !== null && (
+          <View style={s.dato}>
+            <GraduationCap size={16} color={color.texto.secundario} />
+            <Text style={s.datoTexto}>
+              Promedio {promedio.toFixed(1).replace('.', ',').replace(',0', '')} / 20
+            </Text>
+          </View>
+        )}
       </View>
       <Text style={s.cursoNota} numberOfLines={1}>
         {c.ultimoTema && c.ultimaVez
