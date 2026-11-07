@@ -38,6 +38,10 @@ src/
   theme.ts        tokens de Figma: colores, espaciado, radios, tipografía
 ```
 
+## Backend
+
+La API REST está en [`server/`](server/README.md) (Express + TypeScript, bcrypt + JWT, lista para Supabase).
+
 ## Conectar la IA
 
 `src/lib/tutor.ts` responde con ejemplos mientras no exista backend. Cuando lo tengan, define `EXPO_PUBLIC_TUTOR_URL` con la URL de su endpoint (recibe `{ mensajes, contexto }` y devuelve `{ texto }`). La clave de la API debe vivir en ese backend, nunca dentro de la app.
