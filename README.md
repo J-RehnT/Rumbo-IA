@@ -1,51 +1,64 @@
 # Rumbo-IA
 
-Tutor con IA generativa que explica los temas difíciles adaptado a tu ciclo académico y, si nota semanas pesadas, sugiere con cuidado hablar con Bienestar.
+Tutor con IA generativa para universitarios: explica los temas difíciles adaptado a tu ciclo, organiza tus evaluaciones, te escribe por su cuenta para recordarte qué estudiar y, si nota semanas pesadas, sugiere con cuidado hablar con Bienestar.
 
-App móvil en **Expo + React Native** (expo-router, TypeScript), construida a partir del diseño verde de Figma.
+App móvil en **Expo + React Native** (SDK 58, expo-router, TypeScript) con diseño verde de Figma, y API propia en **Node + Express** con **Supabase** (Postgres) y **DeepSeek** como modelo de IA.
+
+## Funcionalidades
+
+- **Cuenta y sesión**: registro e inicio de sesión con correo y contraseña (bcrypt + JWT). La sesión se guarda en el celular (`expo-secure-store`) y las rutas están protegidas.
+- **Registro en 3 pasos**: cuenta → universidad, carrera y ciclo → cursos. Incluye un catálogo de cursos de Ingeniería de Software (UPC) por área, con búsqueda.
+- **Inicio**: saludo, recomendación del día según la evaluación más urgente, próximas fechas con botón **Prepárame**, avisos del tutor y tarjetas de curso con dificultad, próximo parcial y **promedio (x / 20)**.
+- **Agenda académica**: parciales, exámenes, prácticas y entregas de trabajo en equipo. Alta manual o **"Sincronizar con mi universidad"** (simulado).
+- **Tutor IA (DeepSeek)**: chat adaptado al ciclo, la carrera y el curso. Modo **Prepárame**: mini-plan y ejercicios tipo examen uno a uno, con corrección y dificultad según tu promedio (banco modelo de Cálculo II).
+- **Notificaciones**: la IA arma un plan de avisos (sesiones de estudio, métodos por curso y bienestar) y la app los programa en el celular para que suenen aunque esté cerrada (`expo-notifications`, funciona en Expo Go). Bandeja de notificaciones y campana con contador.
+- **Check-in**: ánimo, sueño y carga, más el **plan semanal**: cómo te proyectas (tranquila / normal / intensa) y objetivos por curso o método. El tutor y los avisos usan este plan.
+- **Progreso**: aciertos y bienestar de las últimas 6 semanas, promedio por curso y tarjeta de apoyo. Pestaña **Mi semana** (datos simulados): resumen de la semana pasada con sugerencia, ánimo por semana y horas por curso frente a la semana anterior.
+- **Derivación a Bienestar**: señales de ánimo bajo, poco sueño, carga pesada o cursos desaprobados activan una sugerencia de apoyo (Línea 113 y Bienestar universitario).
 
 ## Cómo correrla
 
 ```bash
+# 1. Backend
+cd server
 npm install
-npx expo start
+cp .env.example .env      # DeepSeek, Supabase y JWT_SECRET
+npm run dev               # http://localhost:3000/api
+
+# 2. App (en otra terminal, desde la raíz)
+npm install
+cp .env.example .env      # EXPO_PUBLIC_API_URL con la IP de tu PC (npm run ip)
+npx expo start -c
 ```
 
-Escanea el QR con **Expo Go** (Android / iOS) o presiona `w` para abrirla en el navegador.
+Escanea el QR con **Expo Go**. Celular y PC deben estar en la misma red Wi-Fi (en Windows, abre el puerto 3000 en el firewall).
 
-## Pantallas
-
-| Ruta | Pantalla |
-|---|---|
-| `/` | Inicio (hero del arco): "Empezar mi ruta" y "Ya tengo cuenta" |
-| `/registro/cuenta` | Registro 1 · Cuenta |
-| `/registro/universidad` | Registro 2 · Universidad, carrera y ciclo (+ selector de 10 universidades) |
-| `/registro/cursos` | Registro 3 · Cursos con horas de clase, dificultad y parcial |
-| `/inicio`, `/tutor`, `/progreso` | Pestañas de la app |
-| `/checkin` | Check-in de bienestar (modal) |
-
-Todavía no hay backend: **ningún campo es obligatorio** y todos los botones avanzan, así se puede recorrer la app completa sin registrarse. "Ya tengo cuenta" e "Inicia sesión" entran directo a la app.
+**Base de datos**: ejecuta [`server/supabase/schema.sql`](server/supabase/schema.sql) en el SQL Editor de Supabase (es idempotente). Para cargar evaluaciones de ejemplo en una cuenta: `npm run sembrar -- correo@dominio.pe` dentro de `server/`.
 
 ## Estructura
 
 ```
 src/
-  app/            rutas (expo-router)
-  components/     Botón, Campo, Chip, Pasos, ArcoHero, Logo, TarjetaApoyo, SelectorUniversidad…
-  data/           universidades
-  state/          estado del estudiante (perfil, cursos, check-ins) en memoria
-  lib/tutor.ts    punto único para conectar la IA
-  theme.ts        tokens de Figma: colores, espaciado, radios, tipografía
+  app/            rutas (expo-router): registro, login, (tabs) inicio/agenda/tutor/progreso,
+                  checkin, notificaciones
+  components/     Boton, Campo, Chip, PlanSemanal, MiSemana, TarjetaApoyo…
+  data/           universidades, catálogo de cursos, tipos de actividad, simulación
+  lib/            api, sesión, notificaciones, tutor, Prepárame, fechas
+  state/          estado del estudiante conectado a la API
+server/           API REST (ver server/README.md)
+  src/routes/     auth, me, cursos, actividades, notificaciones, metas, bienestar, tutor
+  src/services/   DeepSeek, recordatorios, Prepárame, calendario simulado, apoyo
+  supabase/       schema.sql
 ```
 
-## Backend
+## Simulado (para la demo)
 
-La API REST está en [`server/`](server/README.md) (Express + TypeScript, bcrypt + JWT, lista para Supabase).
+- La sincronización del calendario de la universidad.
+- La pestaña **Mi semana** de Progreso y las horas de estudio de las tarjetas de curso.
+- Los ejercicios de Prepárame son del estilo de exámenes universitarios peruanos, no preguntas oficiales.
 
-## Conectar la IA
+## Pendiente
 
-`src/lib/tutor.ts` responde con ejemplos mientras no exista backend. Cuando lo tengan, define `EXPO_PUBLIC_TUTOR_URL` con la URL de su endpoint (recibe `{ mensajes, contexto }` y devuelve `{ texto }`). La clave de la API debe vivir en ese backend, nunca dentro de la app.
-
-## Derivación a Bienestar
-
-`sugerirApoyo` en `src/state/estudiante.tsx` decide cuándo mostrar la tarjeta de apoyo en Mi progreso (ánimo bajo, menos de 6 h de sueño o carga pesada en el último check-in). Ahí se afina la regla con el desempeño real.
+- Ingreso con Google y recuperación de contraseña.
+- Push remotas (requieren un build de desarrollo con EAS).
+- Registro real de horas de estudio y despliegue del backend.
